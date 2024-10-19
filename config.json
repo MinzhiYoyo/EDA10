@@ -1,0 +1,55 @@
+{
+  "label_trans": {
+    "PMOS": ["pmos", "pmos-cross", "pmos-bulk"],
+    "NMOS": ["nmos", "nmos-cross", "nmos-bulk"],
+    "Voltage": ["voltage", "voltage-lines"],
+    "Current": ["current"],
+    "NPN": ["npn", "npn-cross"],
+    "PNP": ["pnp", "pnp-cross"],
+    "Diode": ["diode"],
+    "Diso_amp": ["diff-amp", "single-end-amp"],
+    "Siso_amp": ["single-input-single-end-amp"],
+    "Dido_amp": [],
+    "Cap": ["capacitor", "capacitor-3"],
+    "Gnd": ["gnd"],
+    "Ind": ["inductor", "inductor-3"],
+    "Res": ["resistor", "resistor2", "resistor2_3"],
+    "port": ["port"],
+    "+5v": ["antenna", "vdd"],
+    "bridge": ["cross-line-curved"],
+    "cross": ["switch", "switch-3"]
+  },
+  "label_class": {
+    "PMOS": "PMOSNode",
+    "NMOS": "NMOSNode",
+    "Voltage": "VoltageSourceNode",
+    "Current": "CurrentSourceNode",
+    "NPN": "NPNNode",
+    "PNP": "PNPNode",
+    "Diode": "DiodeNode",
+    "Diso_amp": "DisoAmpNode",
+    "Siso_amp": "SisoAmpNode",
+    "Dido_amp": "",
+    "Cap": "CapacitorNode",
+    "Gnd": "NetNode",
+    "Ind": "InductorNode",
+    "Res": "ResistorNode",
+    "port": "NetNode",
+    "+5v": "NetNode",
+    "bridge": "BridgeNode",
+    "cross": "NetNode"
+  },
+  "label_netlist_node": {
+
+  },
+  "colors": {
+    "wire": [0,0,0],
+    "wire_close": [0, 255, 0],
+    "dotted_wire": [50, 50, 50],
+    "dotted_wire_close": [0, 205, 0],
+    "background": [255,255,255],
+    "component": [255,0,255],
+    "component_close": [255,0,0],
+    "component_add": [10, 0, 10]
+  }
+}
