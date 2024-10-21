@@ -33,7 +33,7 @@ class NetlistModel:
     def save_tmp(self, title, graph, tmp_dir):
         cv2.imwrite(f'{tmp_dir}/{title}.png', graph)
 
-    def mp4_init(self, tmp_dir, fps: int = 1, size: tuple[int, int] = (640, 480), file_name: str = 'output.mp4'):
+    def mp4_init(self, tmp_dir, fps: int = 60, size: tuple[int, int] = (640, 480), file_name: str = 'output.mp4'):
         # 使用MPEG-4编码
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         out = cv2.VideoWriter(f'{tmp_dir}/output.mp4', fourcc, fps, size)
@@ -115,7 +115,7 @@ class NetlistModel:
         if graph is None:
             warning('图像为空')
             return
-        self.mp4_init(tmp_dir, fps=1, size=(graph.shape[1], graph.shape[0]), file_name = png_file_name.split('.')[0] + '.mp4')
+        self.mp4_init(tmp_dir, size=(graph.shape[1], graph.shape[0]), file_name = png_file_name.split('.')[0] + '.mp4')
         graph, binary = self.image_preprocess(png_file_name, graph, info, tmp_dir, is_draw)
 
         # animal_interval = 20 # 每寻多少个点就画一次
@@ -138,7 +138,7 @@ class NetlistModel:
             cv2.destroyAllWindows()
             self.mp4_release()
 
-    def bfs(self, start_node_id: int, rbg: np.ndarray, binary: np.ndarray, info: list[dict]):
+    def bfs(self, start_node_id: int, rbg: np.ndarray, binary: np.ndarray, info: list[dict], animal_interval: int = 20):
         rect: EDARectangle = info[start_node_id]['points']
 
         start_nodes = {
@@ -151,12 +151,16 @@ class NetlistModel:
         corners = np.array([corner.to_numpy() for corner in corners])
         component_close_color = self.colors['component_close']
         cv2.fillConvexPoly(rbg, corners, component_close_color.tolist())
-
+        frame_counter = 0
         for direction, direction_start_points in start_nodes.items():
             q = Queue()
             for start_point in direction_start_points:
                 q.put(start_point)
             while not q.empty():
+                if frame_counter >= animal_interval:
+                    self.draw("graph", rbg, is_draw=True)
+                    frame_counter = 0
+                frame_counter += 1
                 current_point = q.get()
                 # 删除这个点
                 if current_point.is_invalid(rbg):  # 这个点无效
@@ -176,7 +180,6 @@ class NetlistModel:
                         if next_id != start_node_id: # 不等于当前 id
                             next_rect: EDARectangle = info[next_id]['points']
                             next_direct = next_rect.direct(next_point)
-                            self.draw("graph", rbg, True)
                             self.nodes[start_node_id].add_next(direction, (next_direct, next_id))
                             self.nodes[next_id].add_next(next_direct, (direction, start_node_id))
         # 需要重置所有线路的颜色
