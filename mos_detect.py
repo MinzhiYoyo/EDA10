@@ -1,12 +1,11 @@
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
+import sys
 
 result = {}
-image_path = 'test2.png'  # 替换为你的图片路径
-
-from PIL import Image, ImageDraw, ImageFont
+image_path = 'test4.png'  # 替换为你的图片路径
 
 def annotate_image(image_path, save_path, annotations):
     # 打开图像
@@ -95,7 +94,6 @@ def find_peaks_and_second_peak(ratios):
     else:
         return peaks, None
 
-# 找第二个峰值的位置
 def find_second_peak(peaks, column_black_ratios):
     if len(peaks) > 1:
         second_peak_index = peaks[1]
@@ -104,7 +102,6 @@ def find_second_peak(peaks, column_black_ratios):
     else:
         return None, None
 
-'''
 def calculate_ratios(binary_array):
     height, width = binary_array.shape
     column_black_ratios = np.sum(binary_array == 0, axis=0) / height
@@ -129,10 +126,7 @@ def analyze_orientation(column_black_ratios, row_black_ratios):
         print("DS Vertical")
     else:
         print("DS Horizontal")
-'''
 
-# 这个函数计算图中三个最高的峰值两两之间的距离，取距离最近的一对峰值，并返回这两个峰值在图中是偏左还是偏右
-# 根据这个来判断Gate的方位
 def analyze_peaks(peaks, center):
     if peaks is None or len(peaks) < 3:
         return None
@@ -152,8 +146,8 @@ def analyze_peaks(peaks, center):
 
     return position
 
-# 绘制直方图
 def plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios):
+    global image_path
     # 绘制列直方图
     indices = np.arange(len(column_black_ratios))
     plt.figure(figsize=(12, 6))
@@ -181,76 +175,81 @@ def plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_
     # plt.show()
     plt.savefig(image_path.replace('.png', '_histogram.png'))
 
-def read_main():
-    binary_array = binarize_image(image_path)
-    column_black_ratios, column_white_ratios = calculate_column_ratios(binary_array)
-    row_black_ratios, row_white_ratios = calculate_row_ratios(binary_array)
-    # plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios)
-    # analyze_orientation(column_black_ratios, row_black_ratios)
-    column_peaks, column_second_peak = find_peaks_and_second_peak(column_black_ratios)
-    row_peaks, row_second_peak = find_peaks_and_second_peak(row_black_ratios)
-    # sort the peaks
-    column_peaks = np.sort(column_peaks)
-    row_peaks = np.sort(row_peaks)
-    second_peak_index_column, relative_position_column = find_second_peak(column_peaks, column_black_ratios)
-    second_peak_index_row, relative_position_row = find_second_peak(row_peaks, row_black_ratios)
-    
-    if second_peak_index_column is not None:
-        print(f'Second peak index (column): {second_peak_index_column}')
-        print(f'Second peak relative position (column): {relative_position_column}')
-    else:
-        print("Less than two peaks found.")
-
-    if second_peak_index_row is not None:
-        print(f'Second peak index (row): {second_peak_index_row}')
-        print(f'Second peak relative position (row): {relative_position_row}')
-    else:
-        print("Less than two peaks found.")
-
-    # 计算second_peak_index到中心的距离，若column大于row则为竖直，否则为水平
-    # “竖直”和“水平”是对于Drain和Source来说的，如果它们是上下走向则为竖直vertical，否则为水平horizontal
-    height, width = binary_array.shape
-    center_column = width // 2
-    center_row = height // 2
-    distance_column = abs(second_peak_index_column - center_column)
-    distance_row = abs(second_peak_index_row - center_row)
-    print(f'Distance to center (column): {distance_column}')
-    print(f'Distance to center (row): {distance_row}')
-    if distance_column > distance_row:
-        print("DS Vertical")
-        result['Source'] = 'Up'
-        result['Drain'] = 'Down'
-        position = analyze_peaks(column_peaks, center_column)
-        print("Column histogram: Closest peaks are on the", position)
-        if position == 'left':
-            result['Gate'] = 'Left'
+def detect_mos(argv):
+    try:
+        global image_path
+        try:
+            image_path = argv[1]
+        except IndexError:
+            print("Usage: python mos_detect.py <image_path>")
+            sys.exit(1)
+        binary_array = binarize_image(image_path)
+        column_black_ratios, column_white_ratios = calculate_column_ratios(binary_array)
+        row_black_ratios, row_white_ratios = calculate_row_ratios(binary_array)
+        # plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios)
+        # analyze_orientation(column_black_ratios, row_black_ratios)
+        column_peaks, column_second_peak = find_peaks_and_second_peak(column_black_ratios)
+        row_peaks, row_second_peak = find_peaks_and_second_peak(row_black_ratios)
+        # sort the peaks
+        column_peaks = np.sort(column_peaks)
+        row_peaks = np.sort(row_peaks)
+        second_peak_index_column, relative_position_column = find_second_peak(column_peaks, column_black_ratios)
+        second_peak_index_row, relative_position_row = find_second_peak(row_peaks, row_black_ratios)
+        
+        if second_peak_index_column is not None:
+            print(f'Second peak index (column): {second_peak_index_column}')
+            print(f'Second peak relative position (column): {relative_position_column}')
         else:
-            result['Gate'] = 'Right'
-    else:
-        print("DS Horizontal")
-        result['Source'] = 'Left'
-        result['Drain'] = 'Right'
-        position = analyze_peaks(row_peaks, center_row)
-        print("Row histogram: Closest peaks are on the", position)
-        if position == 'left':
-            result['Gate'] = 'Up'
+            print("Less than two peaks found.")
+
+        if second_peak_index_row is not None:
+            print(f'Second peak index (row): {second_peak_index_row}')
+            print(f'Second peak relative position (row): {relative_position_row}')
         else:
-            result['Gate'] = 'Down'
+            print("Less than two peaks found.")
 
-    # result['Body'] = result['Source']
-    print(result)
+        # 计算second_peak_index到中心的距离，若column大于row则为竖直，否则为水平
+        height, width = binary_array.shape
+        center_column = width // 2
+        center_row = height // 2
+        distance_column = abs(second_peak_index_column - center_column)
+        distance_row = abs(second_peak_index_row - center_row)
+        print(f'Distance to center (column): {distance_column}')
+        print(f'Distance to center (row): {distance_row}')
+        if distance_column > distance_row:
+            print("DS Vertical")
+            result['Source'] = 'Up'
+            result['Drain'] = 'Down'
+            position = analyze_peaks(column_peaks, center_column)
+            print("Column histogram: Closest peaks are on the", position)
+            if position == 'left':
+                result['Gate'] = 'Left'
+            else:
+                result['Gate'] = 'Right'
+        else:
+            print("DS Horizontal")
+            result['Source'] = 'Left'
+            result['Drain'] = 'Right'
+            position = analyze_peaks(row_peaks, center_row)
+            print("Row histogram: Closest peaks are on the", position)
+            if position == 'left':
+                result['Gate'] = 'Up'
+            else:
+                result['Gate'] = 'Down'
 
-    save_path = 'annotated_' + image_path  # 保存图片的路径
-    annotate_image(image_path, save_path, result)
+        # result['Body'] = result['Source']
+        print(result)
 
-    plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios)
+        save_path = image_path.replace('.png', '_annotated.png')  # 保存图片的路径
+        annotate_image(image_path, save_path, result)
 
-if __name__ == '__main__':
-    image_path = 'test.png'
-    read_main()
-    image_path = 'test2.png'
-    read_main()
-    image_path = 'test3.png'
-    read_main()
-    image_path = 'test4.png'
-    read_main()
+        plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios)
+
+        return result
+    except Exception as e:
+        print(e)
+        print("Unknown component")
+        return 'Unknown component'
+
+if __name__ == "__main__":
+    detect_mos(sys.argv)
