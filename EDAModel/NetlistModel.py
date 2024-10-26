@@ -128,60 +128,60 @@ class NetlistModel:
                 eval(f"{self.label_class[item_label]}(i)")  # 只会返回None
             )
 
-        for node in self.nodes:
-            graph = self.bfs(node.id, graph, binary, info)
-            self.draw(f'graph', graph, is_draw)
+        # 遍历所有图像，识别wire
+        wire_set = set()
+        color_wire = self.colors['wire'] # np.array
+        for i in range(graph.shape[0]):
+            for j in range(graph.shape[1]):
+                if (graph[i][j] == color_wire).all():
+                    wire_set.add(EDAPoint(j, i))
 
-
+        self.bfs(wire_set, graph, info, animal_interval)
         if is_draw:
             cv2.waitKey(0)
             cv2.destroyAllWindows()
             self.mp4_release()
 
-    def bfs(self, start_node_id: int, rbg: np.ndarray, binary: np.ndarray, info: list[dict], animal_interval: int = 20):
-        rect: EDARectangle = info[start_node_id]['points']
-
-        start_nodes = {
-            EDANode.UP: rect.get_edge(EDANode.UP),
-            EDANode.DOWN: rect.get_edge(EDANode.DOWN),
-            EDANode.LEFT: rect.get_edge(EDANode.LEFT),
-            EDANode.RIGHT: rect.get_edge(EDANode.RIGHT),
-        }
-        corners = rect.get_corners()
-        corners = np.array([corner.to_numpy() for corner in corners])
-        component_close_color = self.colors['component_close']
-        cv2.fillConvexPoly(rbg, corners, component_close_color.tolist())
+    def bfs(self, wire_set: set, rbg: np.ndarray, info: list[dict], animal_interval: int = 20):
         frame_counter = 0
-        for direction, direction_start_points in start_nodes.items():
+        while len(wire_set) > 0:
+            record_component_id_direction = [] # (id, direction)
+            start_point = wire_set.pop()
             q = Queue()
-            for start_point in direction_start_points:
-                q.put(start_point)
+            q.put(start_point)
+            rbg[start_point.y][start_point.x] = self.colors['wire_close'].tolist()
             while not q.empty():
                 if frame_counter >= animal_interval:
                     self.draw("graph", rbg, is_draw=True)
                     frame_counter = 0
                 frame_counter += 1
                 current_point = q.get()
-                # 删除这个点
-                if current_point.is_invalid(rbg):  # 这个点无效
-                    continue
                 next_points = [current_point + EDAPoint(*direct_point) for direct_point in EDAPoint.DIRECTIONS_POINT]
                 for next_point in next_points:
                     if next_point.is_invalid(rbg):
                         continue
-                    next_point_color = rbg[next_point.y][next_point.x]
-                    component_color_start = self.colors['component_add']
-                    if (next_point_color == self.colors['wire']).all():
+                    if next_point in wire_set:
+                        wire_set.remove(next_point)
                         q.put(next_point)
                         rbg[next_point.y][next_point.x] = self.colors['wire_close'].tolist()
-                    elif next_point_color[0] == next_point_color[2] and next_point_color[1] == 0 and next_point_color[0] >= component_color_start[0]:
-                        # 遇到下一个元器件了
-                        next_id = int(next_point_color[0] - component_color_start[0])
-                        if next_id != start_node_id: # 不等于当前 id
+                    else:
+                        next_point_color = rbg[next_point.y][next_point.x]
+                        component_color_start = self.colors['component_add']
+                        if next_point_color[0] == next_point_color[2] and next_point_color[1] == 0 and next_point_color[0] >= component_color_start[0]:
+                            # 遇到下一个元器件了
+                            next_id = int(next_point_color[0] - component_color_start[0])
                             next_rect: EDARectangle = info[next_id]['points']
                             next_direct = next_rect.direct(next_point)
-                            self.nodes[start_node_id].add_next(direction, (next_direct, next_id))
-                            self.nodes[next_id].add_next(next_direct, (direction, start_node_id))
-        # 需要重置所有线路的颜色
-        rbg = self.reset_rgb(binary, rbg, info)
-        return rbg
+                            record_component_id_direction.append((next_id, next_direct))
+            # 开始连接
+            for i in range(len(record_component_id_direction)):
+                for j in range(i + 1, len(record_component_id_direction)):
+                    id_i = record_component_id_direction[i][0]
+                    id_j = record_component_id_direction[j][0]
+                    direct_i = record_component_id_direction[i][1]
+                    direct_j = record_component_id_direction[j][1]
+                    if record_component_id_direction[i] != record_component_id_direction[j]:
+                        self.nodes[id_i].add_next(direct_i, (direct_j, id_j))
+                        self.nodes[id_j].add_next(direct_j, (direct_i, id_i))
+
+

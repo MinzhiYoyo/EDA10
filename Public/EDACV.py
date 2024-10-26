@@ -44,6 +44,8 @@ class EDAPoint:
     def is_invalid(self, rgb: np.ndarray):
         return self.x < 0 or self.y < 0 or self.x >= rgb.shape[1] or self.y >= rgb.shape[0]
 
+    def __hash__(self):
+        return hash((self.x, self.y))
 
 
 class EDARectangle:
