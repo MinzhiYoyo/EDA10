@@ -1,3 +1,14 @@
+##########################################################
+# 输入：图片路径
+# 输出：字典，包含三个键值对
+#       DS：源漏是垂直方向（Vertical）或水平方向（Horizontal）
+#       Source：源极的位置（Left/Right/Up/Down）
+#       Drain：漏极的位置（Left/Right/Up/Down）
+#       Gate：栅极的位置（Left/Right/Up/Down）
+#       Body：衬底（根据赛题指南与源极相连）
+# 调用方法：python mos_detect.py <image_path>
+##########################################################
+
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import matplotlib.pyplot as plt
@@ -146,7 +157,7 @@ def analyze_peaks(peaks, center):
 
     return position
 
-def plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios):
+def plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios, column_peaks, row_peaks):
     global image_path
     # 绘制列直方图
     indices = np.arange(len(column_black_ratios))
@@ -155,6 +166,7 @@ def plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_
     plt.subplot(1, 2, 1)
     plt.bar(indices, column_black_ratios, color='black', label='Black Ratio')
     plt.bar(indices, column_white_ratios, bottom=column_black_ratios, color='white', label='White Ratio')
+    plt.scatter(column_peaks, column_black_ratios[column_peaks], color='red', label='Peaks')
     plt.xlabel('Column Index')
     plt.ylabel('Ratio')
     plt.title('Column Black and White Ratios')
@@ -166,6 +178,7 @@ def plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_
     plt.subplot(1, 2, 2)
     plt.bar(indices, row_black_ratios, color='black', label='Black Ratio')
     plt.bar(indices, row_white_ratios, bottom=row_black_ratios, color='white', label='White Ratio')
+    plt.scatter(row_peaks, row_black_ratios[row_peaks], color='red', label='Peaks')
     plt.xlabel('Row Index')
     plt.ylabel('Ratio')
     plt.title('Row Black and White Ratios')
@@ -196,7 +209,7 @@ def detect_mos(argv):
         second_peak_index_column, relative_position_column = find_second_peak(column_peaks, column_black_ratios)
         second_peak_index_row, relative_position_row = find_second_peak(row_peaks, row_black_ratios)
 
-        plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios)
+        plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios, column_peaks, row_peaks)
         
         if second_peak_index_column is not None:
             print(f'Second peak index (column): {second_peak_index_column}')
@@ -220,6 +233,7 @@ def detect_mos(argv):
         print(f'Distance to center (row): {distance_row}')
         if distance_column > distance_row:
             print("DS Vertical")
+            result['DS'] = 'Vertical'
             result['Source'] = 'Up'
             result['Drain'] = 'Down'
             position = analyze_peaks(column_peaks, center_column)
@@ -230,6 +244,7 @@ def detect_mos(argv):
                 result['Gate'] = 'Right'
         else:
             print("DS Horizontal")
+            result['DS'] = 'Horizontal'
             result['Source'] = 'Left'
             result['Drain'] = 'Right'
             position = analyze_peaks(row_peaks, center_row)
@@ -239,7 +254,7 @@ def detect_mos(argv):
             else:
                 result['Gate'] = 'Down'
 
-        # result['Body'] = result['Source']
+        result['Body'] = result['Source']
         print(result)
 
         save_path = image_path.replace('.png', '_annotated.png')  # 保存图片的路径
