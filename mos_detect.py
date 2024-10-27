@@ -69,12 +69,12 @@ def calculate_row_ratios(binary_array):
     white_ratios = np.sum(binary_array == 1, axis=1) / width
     return black_ratios, white_ratios
 
-def find_peaks_and_second_peak(ratios):
+def find_peaks_and_second_peak(ratios, imgWidth):
     peaks, properties = find_peaks(
         ratios, 
-        distance=20,          # 最小距离
-        prominence=0.1,      # 显著性
-        width=0.1              # 最小宽度
+        distance = imgWidth / 10,          # 最小距离
+        prominence = 0.1,      # 显著性
+        width = 0.1              # 最小宽度
     )
     
     if len(peaks) > 3:
@@ -188,13 +188,15 @@ def detect_mos(argv):
         row_black_ratios, row_white_ratios = calculate_row_ratios(binary_array)
         # plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios)
         # analyze_orientation(column_black_ratios, row_black_ratios)
-        column_peaks, column_second_peak = find_peaks_and_second_peak(column_black_ratios)
-        row_peaks, row_second_peak = find_peaks_and_second_peak(row_black_ratios)
+        column_peaks, column_second_peak = find_peaks_and_second_peak(column_black_ratios, binary_array.shape[1])
+        row_peaks, row_second_peak = find_peaks_and_second_peak(row_black_ratios, binary_array.shape[0])
         # sort the peaks
         column_peaks = np.sort(column_peaks)
         row_peaks = np.sort(row_peaks)
         second_peak_index_column, relative_position_column = find_second_peak(column_peaks, column_black_ratios)
         second_peak_index_row, relative_position_row = find_second_peak(row_peaks, row_black_ratios)
+
+        plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios)
         
         if second_peak_index_column is not None:
             print(f'Second peak index (column): {second_peak_index_column}')
@@ -242,8 +244,6 @@ def detect_mos(argv):
 
         save_path = image_path.replace('.png', '_annotated.png')  # 保存图片的路径
         annotate_image(image_path, save_path, result)
-
-        plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios)
 
         return result
     except Exception as e:
