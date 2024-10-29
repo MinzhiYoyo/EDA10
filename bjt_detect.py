@@ -1,3 +1,13 @@
+##########################################################
+# 输入：图片路径
+# 输出：字典，包含三个键值对
+#       EC：发射极和集电极是垂直方向（Vertical）或水平方向（Horizontal）
+#       Emitter：发射极的位置（Left/Right/Up/Down）
+#       Collector：集电极的位置（Left/Right/Up/Down）
+#       Base：基极的位置（Left/Right/Up/Down）
+# 调用方法：python bjt_detect.py <image_path>
+##########################################################
+
 from PIL import Image, ImageDraw, ImageFont
 import cv2
 import numpy as np
@@ -155,6 +165,7 @@ def detect_bjt(argv):
         # 比较对称性
         if lr_symmetry > ud_symmetry:
             print("EC horizontal")
+            result['EC'] = 'Horizontal'
             if horizontal_bias == "left":
                 result['Emitter'] = 'Left'
                 result['Collector'] = 'Right'
@@ -167,6 +178,7 @@ def detect_bjt(argv):
                 result['Base'] = 'Down'
         else:
             print("EC vertical")
+            result['EC'] = 'Vertical'
             if vertical_bias == "up":
                 result['Emitter'] = 'Up'
                 result['Collector'] = 'Down'
