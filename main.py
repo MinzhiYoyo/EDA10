@@ -12,7 +12,7 @@ def main():
     dataset = EDADataset(data_dir)
     netlist = NetlistModel()
 
-    graph, info, file_path = dataset[46]
+    graph, info, file_path = dataset[683]
 
     netlist.run(os.path.basename(file_path), graph, info, tmp_dir, is_draw=True)
 

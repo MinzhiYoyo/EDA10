@@ -8,6 +8,7 @@ import numpy as np
 from numpy import ndarray
 from sympy.integrals.heurisch import components
 
+from Graph.EDADrawGraph import draw_graph
 from Graph.EDANode import *
 from Public.EDACV import EDARectangle, EDAPoint
 
@@ -22,7 +23,9 @@ class NetlistModel:
         for k in self.colors.keys():
             self.colors[k] = np.array(self.colors[k])
         self.label_class = self.config['label_class']
-        self.nodes = []
+        self.nodes: list[EDANode] = []
+        self.nets: list[NetNode] = []
+        self.netlist_components = self.config['netlist_components']
 
     def draw(self, title, graph, is_draw: bool = False, timeout: int = 1):
         if is_draw:
@@ -125,7 +128,8 @@ class NetlistModel:
             corners = np.array([corner.to_numpy() for corner in corners])
             item_label = item['label']
             self.nodes.append(
-                eval(f"{self.label_class[item_label]}(i)")  # 只会返回None
+                # eval(f"{self.label_class[item_label]}(i)")  # 只会返回None
+                EDANode(node_type=item_label, id=i)
             )
 
         # 遍历所有图像，识别wire
@@ -136,13 +140,23 @@ class NetlistModel:
                 if (graph[i][j] == color_wire).all():
                     wire_set.add(EDAPoint(j, i))
 
-        self.bfs(wire_set, graph, info, animal_interval)
+        self.bfs(wire_set, graph, info, animal_interval, is_draw=is_draw)  # 将 self.nodes 连接起来了
+        self.remove_bridge() # 去除桥
+
+        self.create_net() # 创建网络
+        netlist = self.to_netlist() # 生成 netlist
+        print(netlist)
+        # 以人能够阅读的方式写入 json 文件，路径为 {tmp_dir}/test.json
+        with open(f'{tmp_dir}/{png_file_name.split(".")[0]}.json', 'w', encoding='utf8') as f:
+            json.dump(netlist, f, ensure_ascii=False, indent=4)
+        draw_graph(netlist, int(png_file_name.split(".")[0]))
+
         if is_draw:
             cv2.waitKey(0)
             cv2.destroyAllWindows()
             self.mp4_release()
 
-    def bfs(self, wire_set: set, rbg: np.ndarray, info: list[dict], animal_interval: int = 20):
+    def bfs(self, wire_set: set, rbg: np.ndarray, info: list[dict], animal_interval: int = 20, is_draw = False):
         frame_counter = 0
         while len(wire_set) > 0:
             record_component_id_direction = [] # (id, direction)
@@ -152,7 +166,7 @@ class NetlistModel:
             rbg[start_point.y][start_point.x] = self.colors['wire_close'].tolist()
             while not q.empty():
                 if frame_counter >= animal_interval:
-                    self.draw("graph", rbg, is_draw=True)
+                    self.draw("graph", rbg, is_draw=is_draw)
                     frame_counter = 0
                 frame_counter += 1
                 current_point = q.get()
@@ -184,4 +198,75 @@ class NetlistModel:
                         self.nodes[id_i].add_next(direct_i, (direct_j, id_j))
                         self.nodes[id_j].add_next(direct_j, (direct_i, id_i))
 
+    # 将 dir2 的所有连接到 dir1 上
+    def _connect_nodes(self,node_id: int, dir1: str, dir2:str):
+        node = self.nodes[node_id]
+        for next_direction, next_id in node.next_node[dir1]:
+            # 删除self.nodes[next_id].next_node[next_direction]中的(node_id, dir1)
+            self.nodes[next_id].next_node[next_direction].remove((dir1, node_id))
+            # 添加 node.next_node[dir2]中的所有元素到 self.nodes[next_id].next_node[next_direction]中
+            for next_next_direction, next_next_id in node.next_node[dir2]:
+                self.nodes[next_id].add_next(next_direction, (next_next_direction, next_next_id))
+
+
+    def remove_bridge(self): # 移除桥
+        for i in range(len(self.nodes)):
+            if self.nodes[i].node_type == 'bridge':
+                self._connect_nodes(i, EDANode.UP, EDANode.DOWN)
+                self._connect_nodes(i, EDANode.DOWN, EDANode.UP)
+                self._connect_nodes(i, EDANode.LEFT, EDANode.RIGHT)
+                self._connect_nodes(i, EDANode.RIGHT, EDANode.LEFT)
+
+    def create_net(self):
+        node_length = len(self.nodes)
+
+        for i in range(node_length):
+            if self.nodes[i].node_type == 'bridge':
+                continue
+            my_directions = [EDANode.UP, EDANode.DOWN, EDANode.LEFT, EDANode.RIGHT]
+            for my_direction in my_directions:
+                if len(self.nodes[i].next_node[my_direction]) == 0:
+                    continue
+                self.nets.append(NetNode(len(self.nets)))
+                self.nodes[i].next_net[my_direction] = len(self.nets) - 1
+                for next_direction, next_id in self.nodes[i].next_node[my_direction]:
+                    self.nodes[next_id].next_net[next_direction] = len(self.nets) - 1
+                    self.nodes[next_id].next_node[next_direction] = []
+                self.nodes[i].next_node[my_direction] = []
+
+    def to_netlist(self):
+        """
+        {
+            "ckt_type": "Unkown", # 电路类型预测
+            "ckt_netlist": [
+                {
+                    "component_type": "R1", # 元件类型
+                    "port_connection" {
+                        "positive": 1, # 正极
+                        "negative": 2, # 负极
+                    }
+                },
+                ...
+        }
+        :return: dict
+        """
+        result = {
+            "ckt_type": "Unkown",
+            "ckt_netlist": []
+        }
+        for node_id in range(len(self.nodes)):
+            if self.nodes[node_id].node_type not in self.netlist_components:
+                continue
+            component = {
+                "component_type": self.nodes[node_id].node_type,
+                "port_connection": {}
+            }
+            ports = []
+            for direction in [EDANode.UP, EDANode.DOWN, EDANode.LEFT, EDANode.RIGHT]:
+                port_name, next_net_id = self.nodes[node_id].get_port_name(direction)
+                if port_name is None or next_net_id is None:
+                    continue
+                component["port_connection"][port_name] = str(self.nets[next_net_id])
+            result["ckt_netlist"].append(component)
+        return result
 

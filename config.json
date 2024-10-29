@@ -19,6 +19,7 @@
     "bridge": ["cross-line-curved"],
     "cross": ["switch", "switch-3"]
   },
+  "netlist_components": ["PMOS", "NMOS", "Voltage", "Current", "NPN", "PNP", "Diode", "Diso_amp", "Siso_amp", "Dido_amp", "Cap", "Ind", "Res"],
   "label_class": {
     "PMOS": "PMOSNode",
     "NMOS": "NMOSNode",

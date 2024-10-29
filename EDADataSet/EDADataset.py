@@ -19,6 +19,10 @@ class EDADataset:
                 continue
             self.input_images.append(os.path.join(input_dir, file_name))
             self.length += 1
+        # 对self.input_images进行排序
+        # sort(lambda x: int(os.path.basename(x).split('.')[0]))
+        # 对这个list进行排序
+        self.input_images.sort(key=lambda x: int(os.path.basename(x).split('.')[0]))
         with open('./config.json', 'r', encoding='utf-8') as f:
             self.config = json.load(f)
         self._index = 0
