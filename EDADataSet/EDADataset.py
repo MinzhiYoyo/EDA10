@@ -8,28 +8,42 @@ from cv2 import Mat
 from numpy import ndarray, dtype
 
 from Public.EDACV import EDAPoint, EDARectangle
+from predict import predict
 
 
 class EDADataset:
-    def __init__(self, input_dir:str):
-        self.input_images = []
-        self.length = 0
-        for file_name in os.listdir(input_dir):
-            if not file_name.endswith('.png'):
-                continue
-            self.input_images.append(os.path.join(input_dir, file_name))
-            self.length += 1
-        # 对self.input_images进行排序
-        # sort(lambda x: int(os.path.basename(x).split('.')[0]))
+    def __init__(self, input_path:str, need_read_json = True):
+        # 判断 input_path 是否是目录
+        assert os.path.exists(input_path), f'{input_path} not exists'
+        self.input_images = []  # 读入文件夹下的所有图片
+        if os.path.isdir(input_path):  # 是目录
+            self.input_images = [os.path.join(input_path, file_name) for file_name in os.listdir(input_path) if file_name.endswith('.png')]
+        elif os.path.isfile(input_path): # 是单个文件
+            self.input_images.append(input_path)
         # 对这个list进行排序
-        self.input_images.sort(key=lambda x: int(os.path.basename(x).split('.')[0]))
+        # if len(self.input_images) > 0:
+        #     self.input_images.sort(key=lambda x: int(os.path.basename(x).split('.')[0]))
+
+
+        self.length = len(self.input_images)
+        self.info_list = []  # 读入所有的yolo图片识别的信息
+        if not need_read_json:  # 不需要读取json文件
+            self.info_list = [self.read_a_info_list(predict(i_path)) for i_path in self.input_images]  # 读入所有的yolo图片识别的信息
+        else:
+            self.info_list = [
+                self.read_json_file(json.load(open(i_path.replace('.png', '.json'), 'r', encoding='utf-8')))
+                for i_path in self.input_images
+            ]
+        self.need_read_json = need_read_json
+
+        # 读取配置文件
         with open('./config.json', 'r', encoding='utf-8') as f:
             self.config = json.load(f)
         self._index = 0
 
-    def read_json(self, json_data: dict) -> list:  # 读取json文件
-        info = []
-        for shape in json_data['shapes']:
+    def read_a_info_list(self, info_list):
+        info = []  # 返回 [{"label": label, "points": rec}]
+        for shape in info_list:
             label = self.label_trans(shape['label'])
             points = shape['points']
             left_up = EDAPoint(*points[0])
@@ -40,6 +54,9 @@ class EDADataset:
                 'points': rec,
             })
         return info
+
+    def read_json_file(self, json_data: dict) -> list:  # 读取json文件
+        return self.read_a_info_list(json_data['shapes'])
 
     def label_trans(self, label: str):
         label_hash = self.config['label_trans']
@@ -53,10 +70,7 @@ class EDADataset:
 
     def __getitem__(self, index) -> tuple[ndarray | Any, list, str]:  # return path
         graph = cv2.imread(self.input_images[index])
-        with open(self.input_images[index].replace('.png', '.json'), 'r') as f:
-            json_data = json.load(f)
-            info = self.read_json(json_data)
-        return graph, info, self.input_images[index]
+        return graph, self.info_list[index], self.input_images[index]
 
     # 实现 for i in dataset
     def __iter__(self):
