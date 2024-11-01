@@ -14,11 +14,15 @@ class EDADataset:
     def __init__(self, input_dir:str):
         self.input_images = []
         self.length = 0
-        for file_name in os.listdir(input_dir):
-            if not file_name.endswith('.png'):
-                continue
-            self.input_images.append(os.path.join(input_dir, file_name))
-            self.length += 1
+        if os.path.isfile(input_dir) and input_dir.endswith('.png'):
+            self.input_images.append(input_dir)
+            self.length = 1
+        else:
+            for file_name in os.listdir(input_dir):
+                if not file_name.endswith('.png'):
+                    continue
+                self.input_images.append(os.path.join(input_dir, file_name))
+                self.length += 1
         with open('./config.json', 'r', encoding='utf-8') as f:
             self.config = json.load(f)
         self._index = 0
