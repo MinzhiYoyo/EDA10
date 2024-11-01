@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import sys
 
 result = {}
-image_path = 'test6.png'  # 替换为你的图片路径
+image_path = ''
 
 def binarize_image(image_path):
     # 读取图像
@@ -146,14 +146,8 @@ def annotate_image(image_path, save_path, annotations):
     # 保存修改后的图像
     image.save(save_path)
 
-def detect_bjt(argv):
+def detect_bjt(image_path):
     try:
-        global image_path
-        try:
-            image_path = argv[1]
-        except IndexError:
-            print("Usage: python bjt_detect.py <image_path>")
-            sys.exit(1)
         binary_image = binarize_image(image_path)
         lr_symmetry, ud_symmetry = calculate_symmetry(binary_image)
         column_black_ratios, column_white_ratios = calculate_column_ratios(binary_image)
@@ -202,4 +196,9 @@ def detect_bjt(argv):
         return 'Unknown component'
 
 if __name__ == "__main__":
-    detect_bjt(sys.argv)
+    try:
+        image_path = sys.argv[1]
+    except IndexError:
+        print("Usage: python bjt_detect.py <image_path>")
+        sys.exit(1)
+    detect_bjt(image_path)

@@ -16,7 +16,7 @@ from scipy.signal import find_peaks
 import sys
 
 result = {}
-image_path = 'test4.png'  # 替换为你的图片路径
+image_path = ''
 
 def annotate_image(image_path, save_path, annotations):
     # 打开图像
@@ -188,14 +188,8 @@ def plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_
     # plt.show()
     plt.savefig(image_path.replace('.png', '_histogram.png'))
 
-def detect_mos(argv):
+def detect_mos(image_path):
     try:
-        global image_path
-        try:
-            image_path = argv[1]
-        except IndexError:
-            print("Usage: python mos_detect.py <image_path>")
-            sys.exit(1)
         binary_array = binarize_image(image_path)
         column_black_ratios, column_white_ratios = calculate_column_ratios(binary_array)
         row_black_ratios, row_white_ratios = calculate_row_ratios(binary_array)
@@ -266,5 +260,81 @@ def detect_mos(argv):
         print("Unknown component")
         return 'Unknown component'
 
+def detect_mos_binary(binary_array):
+    try:
+        column_black_ratios, column_white_ratios = calculate_column_ratios(binary_array)
+        row_black_ratios, row_white_ratios = calculate_row_ratios(binary_array)
+        # plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios)
+        # analyze_orientation(column_black_ratios, row_black_ratios)
+        column_peaks, column_second_peak = find_peaks_and_second_peak(column_black_ratios, binary_array.shape[1])
+        row_peaks, row_second_peak = find_peaks_and_second_peak(row_black_ratios, binary_array.shape[0])
+        # sort the peaks
+        column_peaks = np.sort(column_peaks)
+        row_peaks = np.sort(row_peaks)
+        second_peak_index_column, relative_position_column = find_second_peak(column_peaks, column_black_ratios)
+        second_peak_index_row, relative_position_row = find_second_peak(row_peaks, row_black_ratios)
+
+        plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios, column_peaks, row_peaks)
+        
+        if second_peak_index_column is not None:
+            print(f'Second peak index (column): {second_peak_index_column}')
+            print(f'Second peak relative position (column): {relative_position_column}')
+        else:
+            print("Less than two peaks found.")
+
+        if second_peak_index_row is not None:
+            print(f'Second peak index (row): {second_peak_index_row}')
+            print(f'Second peak relative position (row): {relative_position_row}')
+        else:
+            print("Less than two peaks found.")
+
+        # 计算second_peak_index到中心的距离，若column大于row则为竖直，否则为水平
+        height, width = binary_array.shape
+        center_column = width // 2
+        center_row = height // 2
+        distance_column = abs(second_peak_index_column - center_column)
+        distance_row = abs(second_peak_index_row - center_row)
+        print(f'Distance to center (column): {distance_column}')
+        print(f'Distance to center (row): {distance_row}')
+        if distance_column > distance_row:
+            print("DS Vertical")
+            result['DS'] = 'Vertical'
+            result['Source'] = 'Up'
+            result['Drain'] = 'Down'
+            position = analyze_peaks(column_peaks, center_column)
+            print("Column histogram: Closest peaks are on the", position)
+            if position == 'left':
+                result['Gate'] = 'Left'
+            else:
+                result['Gate'] = 'Right'
+        else:
+            print("DS Horizontal")
+            result['DS'] = 'Horizontal'
+            result['Source'] = 'Left'
+            result['Drain'] = 'Right'
+            position = analyze_peaks(row_peaks, center_row)
+            print("Row histogram: Closest peaks are on the", position)
+            if position == 'left':
+                result['Gate'] = 'Up'
+            else:
+                result['Gate'] = 'Down'
+
+        result['Body'] = result['Source']
+        print(result)
+
+        save_path = image_path.replace('.png', '_annotated.png')  # 保存图片的路径
+        annotate_image(image_path, save_path, result)
+
+        return result
+    except Exception as e:
+        print(e)
+        print("Unknown component")
+        return 'Unknown component'
+
 if __name__ == "__main__":
-    detect_mos(sys.argv)
+    try:
+        image_path = sys.argv[1]
+    except IndexError:
+        print("Usage: python mos_detect.py <image_path>")
+        sys.exit(1)
+    detect_mos(image_path)

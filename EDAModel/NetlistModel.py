@@ -1,5 +1,5 @@
 import json
-import queue
+from PIL import Image
 from logging import warning
 from queue import Queue
 
@@ -11,6 +11,8 @@ from sympy.integrals.heurisch import components
 from Graph.EDADrawGraph import draw_graph
 from Graph.EDANode import *
 from Public.EDACV import EDARectangle, EDAPoint
+from mos_detect import detect_mos
+from bjt_detect import detect_bjt
 
 
 class NetlistModel:
@@ -67,8 +69,20 @@ class NetlistModel:
             corners = np.array([corner.to_numpy() for corner in corners])
             cv2.fillConvexPoly(rgb, corners, component_color.tolist())
         return rgb
+    
+    def crop_image(self, input_path, output_path, top_left_x, top_left_y, bottom_right_x, bottom_right_y):
+        # 打开输入图片
+        with Image.open(input_path) as img:
+            # 定义裁剪区域
+            crop_area = (top_left_x, top_left_y, bottom_right_x, bottom_right_y)
+            
+            # 裁剪图片
+            cropped_img = img.crop(crop_area)
+            
+            # 保存裁剪后的图片
+            cropped_img.save(output_path)
 
-    def image_preprocess(self,png_file_name, graph: ndarray, info: list[dict], tmp_dir: str, is_draw: bool = False):
+    def image_preprocess(self, png_file_name, graph: ndarray, info: list[dict], tmp_dir: str, is_draw: bool = False):
         """
         对一张图进行处理
         :param graph:
@@ -114,7 +128,7 @@ class NetlistModel:
         return rgb, binary
 
     # 执行一张图
-    def run(self, png_file_name, graph: ndarray, info: list[dict], tmp_dir: str, is_draw: bool = False, animal_interval: int = 20):
+    def run(self, png_file_path, png_file_name, graph: ndarray, info: list[dict], tmp_dir: str, is_draw: bool = False, animal_interval: int = 20):
         if graph is None:
             warning('图像为空')
             return
@@ -127,10 +141,25 @@ class NetlistModel:
             corners = item_rectangle.get_corners()
             corners = np.array([corner.to_numpy() for corner in corners])
             item_label = item['label']
-            self.nodes.append(
-                # eval(f"{self.label_class[item_label]}(i)")  # 只会返回None
-                EDANode(node_type=item_label, id=i)
-            )
+            new_node = EDANode(node_type=item_label, id=i)
+            if 'MOS' in item_label:
+                # 调用MOS端口识别
+                self.crop_image(png_file_path, f'{tmp_dir}/tmp_mos.png', corners[0][0], corners[0][1], corners[2][0], corners[2][1])
+                mos_ports = detect_mos(f'{tmp_dir}/tmp_mos.png')
+                if mos_ports != 'Unknown component':
+                    new_node.set_direct_to_poly(mos_ports['Source'], ('Source', i))
+                    new_node.set_direct_to_poly(mos_ports['Gate'], ('Gate', i))
+                    new_node.set_direct_to_poly(mos_ports['Drain'], ('Drain', i))
+                    new_node.set_direct_to_poly(mos_ports['Body'], ('Body', i))
+            elif 'NPN' in item_label or 'PNP' in item_label:
+                # 调用BJT端口识别
+                self.crop_image(png_file_path, f'{tmp_dir}/tmp_bjt.png', corners[0][0], corners[0][1], corners[2][0], corners[2][1])
+                bjt_ports = detect_bjt(f'{tmp_dir}/tmp_bjt.png')
+                if bjt_ports != 'Unknown component':
+                    new_node.set_direct_to_poly(bjt_ports['Emitter'], ('Emitter', i))
+                    new_node.set_direct_to_poly(bjt_ports['Base'], ('Base', i))
+                    new_node.set_direct_to_poly(bjt_ports['Collector'], ('Collector', i))
+            self.nodes.append(new_node)
 
         # 遍历所有图像，识别wire
         wire_set = set()
