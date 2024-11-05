@@ -24,6 +24,10 @@ class EDADataset:
         # if len(self.input_images) > 0:
         #     self.input_images.sort(key=lambda x: int(os.path.basename(x).split('.')[0]))
 
+        # 读取配置文件
+        with open('./config.json', 'r', encoding='utf-8') as f:
+            print(f'loading config from {f.name}')
+            self.config = json.load(f)
 
         self.length = len(self.input_images)
         self.info_list = []  # 读入所有的yolo图片识别的信息
@@ -36,9 +40,6 @@ class EDADataset:
             ]
         self.need_read_json = need_read_json
 
-        # 读取配置文件
-        with open('./config.json', 'r', encoding='utf-8') as f:
-            self.config = json.load(f)
         self._index = 0
 
     def read_a_info_list(self, info_list):
