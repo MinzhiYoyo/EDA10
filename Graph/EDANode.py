@@ -53,6 +53,14 @@ class EDANode:
             raise ValueError(f"Invalid input {direction}, {poly}")
         
     def process_directions(self):
+        '''
+        上下相对，左右相对
+        若只有1个键被赋值，则将这个值也赋给与之相对的那个键；
+        若有2个键被赋值，且这两个键恰好是相对的，则不做任何操作；
+        若有2个键被赋值，但这两个键不是相对的，则对于"Up""Down"这两个键，保留其中非None的值，并把另一个None值改为"Left""Right"两个键中非None的那个值，其他的键重置为None；
+        若有3个键被赋值，则保留其中相对的两个键的值，其他重置为None；
+        若4个键都被赋值，则保留其中"Up""Down"这两个键的值，其他重置为None。
+        '''
         D = self.next_net
         OPPOSITES = {EDANode.UP: EDANode.DOWN, EDANode.DOWN: EDANode.UP, EDANode.LEFT: EDANode.RIGHT, EDANode.RIGHT: EDANode.LEFT}
         keys = [EDANode.UP, EDANode.DOWN, EDANode.LEFT, EDANode.RIGHT]

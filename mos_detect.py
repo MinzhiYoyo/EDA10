@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 import sys
 
-result = {}
+result = {'DS': None, 'Source': None, 'Drain': None, 'Gate': None, 'Body': None}
 image_path = ''
 
 def annotate_image(image_path, save_path, annotations):
@@ -261,7 +261,7 @@ def detect_mos(image_path):
     except Exception as e:
         print(e)
         print("Unknown component")
-        return 'Unknown component'
+        return result
 
 if __name__ == "__main__":
     try:
