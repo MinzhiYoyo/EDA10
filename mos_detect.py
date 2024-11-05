@@ -84,7 +84,7 @@ def find_peaks_and_second_peak(ratios, imgWidth):
     peaks, properties = find_peaks(
         ratios, 
         distance = imgWidth / 10,          # 最小距离
-        prominence = 0.1,      # 显著性
+        prominence = 0.05,      # 显著性
         width = 0.1              # 最小宽度
     )
     
@@ -97,7 +97,8 @@ def find_peaks_and_second_peak(ratios, imgWidth):
         peaks = peaks[top_three_indices]
         
     # 打印峰值位置
-    print("Peaks:", peaks)
+    # print("Peaks:", peaks)
+    print(peaks)
     
     if len(peaks) > 1:
         second_peak_index = peaks[1]
@@ -157,8 +158,7 @@ def analyze_peaks(peaks, center):
 
     return position
 
-def plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios, column_peaks, row_peaks):
-    global image_path
+def plot_ratios(image_path, save_path, column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios, column_peaks, row_peaks):
     # 绘制列直方图
     indices = np.arange(len(column_black_ratios))
     plt.figure(figsize=(12, 6))
@@ -186,7 +186,7 @@ def plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_
 
     plt.tight_layout()
     # plt.show()
-    plt.savefig(image_path.replace('.png', '_histogram.png'))
+    plt.savefig(save_path)
 
 def detect_mos(image_path):
     try:
@@ -203,8 +203,10 @@ def detect_mos(image_path):
         second_peak_index_column, relative_position_column = find_second_peak(column_peaks, column_black_ratios)
         second_peak_index_row, relative_position_row = find_second_peak(row_peaks, row_black_ratios)
 
-        plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios, column_peaks, row_peaks)
+        save_path = image_path.replace('.png', '_histogram.png')  # 保存图片的路径
+        plot_ratios(image_path, save_path, column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios, column_peaks, row_peaks)
         
+        ''' 打印一些峰值识别信息
         if second_peak_index_column is not None:
             print(f'Second peak index (column): {second_peak_index_column}')
             print(f'Second peak relative position (column): {relative_position_column}')
@@ -216,6 +218,7 @@ def detect_mos(image_path):
             print(f'Second peak relative position (row): {relative_position_row}')
         else:
             print("Less than two peaks found.")
+        '''
 
         # 计算second_peak_index到中心的距离，若column大于row则为竖直，否则为水平
         height, width = binary_array.shape
@@ -223,104 +226,33 @@ def detect_mos(image_path):
         center_row = height // 2
         distance_column = abs(second_peak_index_column - center_column)
         distance_row = abs(second_peak_index_row - center_row)
-        print(f'Distance to center (column): {distance_column}')
-        print(f'Distance to center (row): {distance_row}')
+        # print(f'Distance to center (column): {distance_column}')
+        # print(f'Distance to center (row): {distance_row}')
         if distance_column > distance_row:
-            print("DS Vertical")
+            # print("DS Vertical")
             result['DS'] = 'Vertical'
             result['Source'] = 'Up'
             result['Drain'] = 'Down'
             position = analyze_peaks(column_peaks, center_column)
-            print("Column histogram: Closest peaks are on the", position)
+            # print("Column histogram: Closest peaks are on the", position)
             if position == 'left':
                 result['Gate'] = 'Left'
             else:
                 result['Gate'] = 'Right'
         else:
-            print("DS Horizontal")
+            # print("DS Horizontal")
             result['DS'] = 'Horizontal'
             result['Source'] = 'Left'
             result['Drain'] = 'Right'
             position = analyze_peaks(row_peaks, center_row)
-            print("Row histogram: Closest peaks are on the", position)
+            # print("Row histogram: Closest peaks are on the", position)
             if position == 'left':
                 result['Gate'] = 'Up'
             else:
                 result['Gate'] = 'Down'
 
         result['Body'] = result['Source']
-        print(result)
-
-        save_path = image_path.replace('.png', '_annotated.png')  # 保存图片的路径
-        annotate_image(image_path, save_path, result)
-
-        return result
-    except Exception as e:
-        print(e)
-        print("Unknown component")
-        return 'Unknown component'
-
-def detect_mos_binary(binary_array):
-    try:
-        column_black_ratios, column_white_ratios = calculate_column_ratios(binary_array)
-        row_black_ratios, row_white_ratios = calculate_row_ratios(binary_array)
-        # plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios)
-        # analyze_orientation(column_black_ratios, row_black_ratios)
-        column_peaks, column_second_peak = find_peaks_and_second_peak(column_black_ratios, binary_array.shape[1])
-        row_peaks, row_second_peak = find_peaks_and_second_peak(row_black_ratios, binary_array.shape[0])
-        # sort the peaks
-        column_peaks = np.sort(column_peaks)
-        row_peaks = np.sort(row_peaks)
-        second_peak_index_column, relative_position_column = find_second_peak(column_peaks, column_black_ratios)
-        second_peak_index_row, relative_position_row = find_second_peak(row_peaks, row_black_ratios)
-
-        plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios, column_peaks, row_peaks)
-        
-        if second_peak_index_column is not None:
-            print(f'Second peak index (column): {second_peak_index_column}')
-            print(f'Second peak relative position (column): {relative_position_column}')
-        else:
-            print("Less than two peaks found.")
-
-        if second_peak_index_row is not None:
-            print(f'Second peak index (row): {second_peak_index_row}')
-            print(f'Second peak relative position (row): {relative_position_row}')
-        else:
-            print("Less than two peaks found.")
-
-        # 计算second_peak_index到中心的距离，若column大于row则为竖直，否则为水平
-        height, width = binary_array.shape
-        center_column = width // 2
-        center_row = height // 2
-        distance_column = abs(second_peak_index_column - center_column)
-        distance_row = abs(second_peak_index_row - center_row)
-        print(f'Distance to center (column): {distance_column}')
-        print(f'Distance to center (row): {distance_row}')
-        if distance_column > distance_row:
-            print("DS Vertical")
-            result['DS'] = 'Vertical'
-            result['Source'] = 'Up'
-            result['Drain'] = 'Down'
-            position = analyze_peaks(column_peaks, center_column)
-            print("Column histogram: Closest peaks are on the", position)
-            if position == 'left':
-                result['Gate'] = 'Left'
-            else:
-                result['Gate'] = 'Right'
-        else:
-            print("DS Horizontal")
-            result['DS'] = 'Horizontal'
-            result['Source'] = 'Left'
-            result['Drain'] = 'Right'
-            position = analyze_peaks(row_peaks, center_row)
-            print("Row histogram: Closest peaks are on the", position)
-            if position == 'left':
-                result['Gate'] = 'Up'
-            else:
-                result['Gate'] = 'Down'
-
-        result['Body'] = result['Source']
-        print(result)
+        # print(result)
 
         save_path = image_path.replace('.png', '_annotated.png')  # 保存图片的路径
         annotate_image(image_path, save_path, result)

@@ -1,4 +1,5 @@
 import json
+import random
 from PIL import Image
 from logging import warning
 from queue import Queue
@@ -147,19 +148,21 @@ class NetlistModel:
                 self.crop_image(png_file_path, f'{tmp_dir}/tmp_mos.png', corners[0][0], corners[0][1], corners[2][0], corners[2][1])
                 mos_ports = detect_mos(f'{tmp_dir}/tmp_mos.png')
                 if mos_ports != 'Unknown component':
-                    new_node.set_direct_to_poly(mos_ports['Source'], ('Source', i))
-                    new_node.set_direct_to_poly(mos_ports['Gate'], ('Gate', i))
-                    new_node.set_direct_to_poly(mos_ports['Drain'], ('Drain', i))
-                    new_node.set_direct_to_poly(mos_ports['Body'], ('Body', i))
+                    new_node.set_direct_to_poly(mos_ports['Source'], 'Source')
+                    new_node.set_direct_to_poly(mos_ports['Gate'], 'Gate')
+                    new_node.set_direct_to_poly(mos_ports['Drain'], 'Drain')
             elif 'NPN' in item_label or 'PNP' in item_label:
                 # 调用BJT端口识别
                 self.crop_image(png_file_path, f'{tmp_dir}/tmp_bjt.png', corners[0][0], corners[0][1], corners[2][0], corners[2][1])
                 bjt_ports = detect_bjt(f'{tmp_dir}/tmp_bjt.png')
                 if bjt_ports != 'Unknown component':
-                    new_node.set_direct_to_poly(bjt_ports['Emitter'], ('Emitter', i))
-                    new_node.set_direct_to_poly(bjt_ports['Base'], ('Base', i))
-                    new_node.set_direct_to_poly(bjt_ports['Collector'], ('Collector', i))
+                    new_node.set_direct_to_poly(bjt_ports['Emitter'], 'Emitter')
+                    new_node.set_direct_to_poly(bjt_ports['Base'], 'Base')
+                    new_node.set_direct_to_poly(bjt_ports['Collector'], 'Collector')
+            # elif item_label in self.config['label_netlist_port']:
+            #     new_node.set_direct_to_poly()
             self.nodes.append(new_node)
+            # print(new_node.direct_to_poly)
 
         # 遍历所有图像，识别wire
         wire_set = set()
@@ -255,7 +258,7 @@ class NetlistModel:
                 continue
             my_directions = [EDANode.UP, EDANode.DOWN, EDANode.LEFT, EDANode.RIGHT]
             for my_direction in my_directions:
-                if len(self.nodes[i].next_node[my_direction]) == 0:
+                if len(self.nodes[i].next_node[my_direction]) == 0: # 如果这个方向没有连任何节点，则跳过
                     continue
                 self.nets.append(NetNode(len(self.nets)))
                 self.nodes[i].next_net[my_direction] = len(self.nets) - 1
@@ -281,7 +284,7 @@ class NetlistModel:
         :return: dict
         """
         result = {
-            "ckt_type": "Unkown",
+            "ckt_type": random.choice(self.config['ckt_type']),
             "ckt_netlist": []
         }
         for node_id in range(len(self.nodes)):
@@ -291,12 +294,18 @@ class NetlistModel:
                 "component_type": self.nodes[node_id].node_type,
                 "port_connection": {}
             }
+            if(self.nodes[node_id].node_type in self.config['label_dual_port']):
+                self.nodes[node_id].process_directions()
             ports = []
             for direction in [EDANode.UP, EDANode.DOWN, EDANode.LEFT, EDANode.RIGHT]:
+                dir_to_ports = [p for p, n in self.nodes[node_id].next_net.items() if n is not None]
+                self.nodes[node_id].set_direct_to_poly(dir_to_ports, self.config['label_netlist_port'][self.nodes[node_id].node_type])
                 port_name, next_net_id = self.nodes[node_id].get_port_name(direction)
-                if port_name is None or next_net_id is None:
+                if port_name is None or next_net_id is None or port_name in [EDANode.UP, EDANode.DOWN, EDANode.LEFT, EDANode.RIGHT]:
                     continue
                 component["port_connection"][port_name] = str(self.nets[next_net_id])
+                if port_name == 'Source':
+                    component["port_connection"]["Body"] = str(self.nets[next_net_id])
             result["ckt_netlist"].append(component)
         return result
 

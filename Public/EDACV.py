@@ -111,15 +111,15 @@ class EDARectangle:
         # 哪个最小就是哪个方向，如果有多个最小，优先级为左右上下，如果都一样，那么为中间
         min_value = min(to_left, to_right, to_up, to_down)
         if min_value == to_left == to_right == to_up == to_down:
-            return 'center'
+            return 'Center'
         if min_value == to_left:
-            return 'left'
+            return 'Left'
         elif min_value == to_right:
-            return 'right'
+            return 'Right'
         elif min_value == to_up:
-            return 'up'
+            return 'Up'
         else:
-            return 'down'
+            return 'Down'
 
 
 
