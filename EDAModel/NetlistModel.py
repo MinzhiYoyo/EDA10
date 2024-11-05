@@ -144,6 +144,7 @@ class NetlistModel:
         self.remove_bridge() # 去除桥
 
         self.create_net() # 创建网络
+
         netlist = self.to_netlist() # 生成 netlist
         # 以人能够阅读的方式写入 json 文件，路径为 {tmp_dir}/test.json
         with open(f'{tmp_dir}/{png_file_name.split(".")[0]}.json', 'w', encoding='utf8') as f:
