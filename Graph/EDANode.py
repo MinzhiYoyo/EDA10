@@ -1,18 +1,23 @@
+import random
+
+from Public.EDACV import CV_UP, CV_DOWN, CV_LEFT, CV_RIGHT
+
 
 # 颜色标志：导线是绿色的，走过的导线是浅绿色
 # 元器件是黑色的，走过的元器件是灰色
 #
 
 class EDANode:
-    UP = "Up"
-    DOWN = "Down"
-    LEFT = "Left"
-    RIGHT = "Right"
-    TOTAL = "Total"
-    def __init__(self, node_type: str, id: int):
+    UP = CV_UP # "Up"
+    DOWN = CV_DOWN # "Down"
+    LEFT = CV_LEFT # "Left"
+    RIGHT = CV_RIGHT # "Right"
+    # TOTAL = "Total"
+    def __init__(self, node_type: str, id: int, rect):
         self.name = node_type + str(id)
         self.id = id
         self.node_type = node_type
+        self.rect = rect
 
         self.next_node = {
             EDANode.UP: [],
@@ -22,10 +27,10 @@ class EDANode:
         }
 
         self.next_net = {
-            EDANode.UP: None,
-            EDANode.DOWN: None,
-            EDANode.LEFT: None,
-            EDANode.RIGHT: None,
+            EDANode.UP: [],
+            EDANode.DOWN: [],
+            EDANode.LEFT: [],
+            EDANode.RIGHT: [],
         }
 
         self.direct_to_poly = {
@@ -37,9 +42,11 @@ class EDANode:
 
     def get_port_name(self, direction: str):
         assert direction in [EDANode.UP, EDANode.DOWN, EDANode.LEFT, EDANode.RIGHT], f"Invalid direction `{direction}`, must be in [{EDANode.UP}, {EDANode.DOWN}, {EDANode.LEFT}, {EDANode.RIGHT}]"
-        if self.next_net[direction] is None: # 这个方向上没有连接
+        if self.next_net[direction] is None or len(self.next_net[direction]) == 0: # 这个方向上没有连接
             return None, None
-        return direction if self.direct_to_poly[direction] is None else self.direct_to_poly[direction], self.next_net[direction]
+        # 随机选择 self.next_net[direction] 中的一个
+        random_next_net = self.next_net[direction][random.randint(0, len(self.next_net[direction]) - 1)]
+        return direction if self.direct_to_poly[direction] is None else self.direct_to_poly[direction], random_next_net
 
     # 设置上下左右分别是什么
     def set_direct_to_poly(self, direction: str | list, poly: str | list):
@@ -142,6 +149,15 @@ class EDANode:
              f" direction of next node, id of next node")
         if not self.next_exist(d, p):
             self.next_node[d].append(p)
+
+    def delete_next(self, d: str, p: tuple[str, int]):
+        assert d in self.direct_to_poly.keys(), f"Invalid direction `{d}`, must be in [{EDANode.UP}, {EDANode.DOWN}, {EDANode.LEFT}, {EDANode.RIGHT}]"
+        assert isinstance(p, tuple) and len(p) == 2 and isinstance(p[0], str) and isinstance(p[1], int), \
+            (f"Invalid poly_id `{p}`, must be tuple[str, int], but is {type(p)}[{type(p[0])}, {type(p[1])}], len(p) = {len(p)},"
+             f" direction of next node, id of next node")
+        if self.next_exist(d, p):
+            self.next_node[d].remove(p)
+
 
     def next_exist(self,d, p):
          return p in self.next_node[d]
