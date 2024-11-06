@@ -15,6 +15,8 @@ import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 import sys
 
+from Public.EDACV import CV_RIGHT, CV_LEFT, CV_UP, CV_DOWN
+
 result = {'DS': None, 'Source': None, 'Drain': None, 'Gate': None, 'Body': None}
 image_path = ''
 
@@ -31,24 +33,24 @@ def annotate_image(image_path, save_path, annotations):
     width, height = image.size
     
     # 根据字典在对应的边上写入文字
-    if 'Left' in annotations.values():
-        text = [k for k, v in annotations.items() if v == 'Left'][0]
+    if CV_LEFT in annotations.values():
+        text = [k for k, v in annotations.items() if v == CV_LEFT][0]
         draw.text((10, height / 2), text, font=font, fill="red")
 
-    if 'Right' in annotations.values():
-        text = [k for k, v in annotations.items() if v == 'Right'][0]
+    if CV_RIGHT in annotations.values():
+        text = [k for k, v in annotations.items() if v == CV_RIGHT][0]
         bbox = draw.textbbox((0, 0), text, font=font)
         text_width = bbox[2] - bbox[0]
         draw.text((width - text_width - 10, height / 2), text, font=font, fill="red")
 
-    if 'Up' in annotations.values():
-        text = [k for k, v in annotations.items() if v == 'Up'][0]
+    if CV_UP in annotations.values():
+        text = [k for k, v in annotations.items() if v == CV_UP][0]
         bbox = draw.textbbox((0, 0), text, font=font)
         text_width = bbox[2] - bbox[0]
         draw.text(((width - text_width) / 2, 10), text, font=font, fill="red")
         
-    if 'Down' in annotations.values():
-        text = [k for k, v in annotations.items() if v == 'Down'][0]
+    if CV_DOWN in annotations.values():
+        text = [k for k, v in annotations.items() if v == CV_DOWN][0]
         bbox = draw.textbbox((0, 0), text, font=font)
         text_width = bbox[2] - bbox[0]
         text_height = bbox[3] - bbox[1]
@@ -58,11 +60,14 @@ def annotate_image(image_path, save_path, annotations):
     image.save(save_path)
 
 def binarize_image(image_path, threshold=128):
-    # 打开图像并转换为灰度
-    image = Image.open(image_path).convert('L')
-    # 将灰度图像转换为NumPy数组
-    image_array = np.array(image)
-    # 二值化处理
+    if isinstance(image_path, str):
+        # 打开图像并转换为灰度
+        image = Image.open(image_path).convert('L')
+        # 将灰度图像转换为NumPy数组
+        image_array = np.array(image)
+        # 二值化处理
+    else:
+        image_array = image_path
     binary_array = (image_array > threshold).astype(int)
     return binary_array
 
@@ -152,9 +157,9 @@ def analyze_peaks(peaks, center):
     right_peak = peaks[min_distance_index + 1]
 
     if (left_peak + right_peak) / 2 < center:
-        position = "left"
+        position = CV_LEFT
     else:
-        position = "right"
+        position = CV_RIGHT
 
     return position
 
@@ -231,25 +236,25 @@ def detect_mos(image_path):
         if distance_column > distance_row:
             # print("DS Vertical")
             result['DS'] = 'Vertical'
-            result['Source'] = 'Up'
-            result['Drain'] = 'Down'
+            result['Source'] = CV_UP
+            result['Drain'] = CV_DOWN
             position = analyze_peaks(column_peaks, center_column)
             # print("Column histogram: Closest peaks are on the", position)
-            if position == 'left':
-                result['Gate'] = 'Left'
+            if position == CV_LEFT:
+                result['Gate'] = CV_LEFT
             else:
-                result['Gate'] = 'Right'
+                result['Gate'] = CV_RIGHT
         else:
             # print("DS Horizontal")
             result['DS'] = 'Horizontal'
-            result['Source'] = 'Left'
-            result['Drain'] = 'Right'
+            result['Source'] = CV_LEFT
+            result['Drain'] = CV_RIGHT
             position = analyze_peaks(row_peaks, center_row)
             # print("Row histogram: Closest peaks are on the", position)
-            if position == 'left':
-                result['Gate'] = 'Up'
+            if position == CV_LEFT:
+                result['Gate'] = CV_UP
             else:
-                result['Gate'] = 'Down'
+                result['Gate'] = CV_DOWN
 
         result['Body'] = result['Source']
         # print(result)
