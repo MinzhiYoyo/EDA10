@@ -1,14 +1,16 @@
+from Public.EDACV import CV_UP, CV_DOWN, CV_LEFT, CV_RIGHT
+
 
 # 颜色标志：导线是绿色的，走过的导线是浅绿色
 # 元器件是黑色的，走过的元器件是灰色
 #
 
 class EDANode:
-    UP = "Up"
-    DOWN = "Down"
-    LEFT = "Left"
-    RIGHT = "Right"
-    TOTAL = "Total"
+    UP = CV_UP # "Up"
+    DOWN = CV_DOWN # "Down"
+    LEFT = CV_LEFT # "Left"
+    RIGHT = CV_RIGHT # "Right"
+    # TOTAL = "Total"
     def __init__(self, node_type: str, id: int):
         self.name = node_type + str(id)
         self.id = id

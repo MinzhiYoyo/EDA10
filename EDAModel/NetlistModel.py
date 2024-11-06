@@ -25,7 +25,7 @@ class NetlistModel:
         self.colors = self.config['colors']
         for k in self.colors.keys():
             self.colors[k] = np.array(self.colors[k])
-        self.label_class = self.config['label_class']
+        # self.label_class = self.config['label_class']
         self.nodes: list[EDANode] = []
         self.nets: list[NetNode] = []
         self.netlist_components = self.config['netlist_components']
@@ -128,6 +128,12 @@ class NetlistModel:
 
         return rgb, binary
 
+    def label_to_type(self, label: str):
+        for k, v in self.config['label_trans'].items():
+            if label in v:
+                return k
+        return label
+
     # 执行一张图
     def run(self, png_file_path, png_file_name, graph: ndarray, info: list[dict], tmp_dir: str, is_draw: bool = False, animal_interval: int = 20):
         if graph is None:
@@ -142,7 +148,7 @@ class NetlistModel:
             corners = item_rectangle.get_corners()
             corners = np.array([corner.to_numpy() for corner in corners])
             item_label = item['label']
-            new_node = EDANode(node_type=item_label, id=i)
+            new_node = EDANode(node_type=self.label_to_type(item_label), id=i)
             if 'MOS' in item_label:
                 # 调用MOS端口识别
                 self.crop_image(png_file_path, f'{tmp_dir}/tmp_mos.png', corners[0][0], corners[0][1], corners[2][0], corners[2][1])
@@ -172,18 +178,25 @@ class NetlistModel:
                 if (graph[i][j] == color_wire).all():
                     wire_set.add(EDAPoint(j, i))
 
+        # 将所有节点连成网络
         self.bfs(wire_set, graph, info, animal_interval, is_draw=is_draw)  # 将 self.nodes 连接起来了
+
+        # 删除bridge节点
         self.remove_bridge() # 去除桥
 
-        self.create_net() # 创建网络
+        # 将节点间的关系创建成net
+        self.create_net(info, graph, is_draw) # 创建网络
 
+        # 生成网表
         netlist = self.to_netlist() # 生成 netlist
         # 以人能够阅读的方式写入 json 文件，路径为 {tmp_dir}/test.json
         with open(f'{tmp_dir}/{png_file_name.split(".")[0]}.json', 'w', encoding='utf8') as f:
             json.dump(netlist, f, ensure_ascii=False, indent=4)
 
+        # TODO: 增加输出功能
+
         if is_draw:
-            draw_graph(netlist, int(png_file_name.split(".")[0]))
+            draw_graph(netlist, png_file_name)
 
         if is_draw:
             cv2.waitKey(0)
@@ -203,12 +216,14 @@ class NetlistModel:
                     self.draw("graph", rbg, is_draw=is_draw)
                     frame_counter = 0
                 frame_counter += 1
+
                 current_point = q.get()
                 next_points = [current_point + EDAPoint(*direct_point) for direct_point in EDAPoint.DIRECTIONS_POINT]
                 for next_point in next_points:
                     if next_point.is_invalid(rbg):
                         continue
-                    if next_point in wire_set:
+
+                    if next_point in wire_set:  # 如果下一个点是未遍历的点（线点）
                         wire_set.remove(next_point)
                         q.put(next_point)
                         rbg[next_point.y][next_point.x] = self.colors['wire_close'].tolist()
@@ -221,7 +236,7 @@ class NetlistModel:
                             next_rect: EDARectangle = info[next_id]['points']
                             next_direct = next_rect.direct(next_point)
                             record_component_id_direction.append((next_id, next_direct))
-            # 开始连接
+
             for i in range(len(record_component_id_direction)):
                 for j in range(i + 1, len(record_component_id_direction)):
                     id_i = record_component_id_direction[i][0]
@@ -251,8 +266,27 @@ class NetlistModel:
                 self._connect_nodes(i, EDANode.LEFT, EDANode.RIGHT)
                 self._connect_nodes(i, EDANode.RIGHT, EDANode.LEFT)
 
-    def create_net(self):
+    def create_net(self, info: list[dict] = None, graph: np.ndarray = None, is_draw = False):
         node_length = len(self.nodes)
+
+        def draw(id, direction, net_id):
+            if is_draw:
+                rec: EDARectangle = info[id]['points']
+                # 在direction的中间写上 net_id
+                center = rec.center()
+                text = str(net_id)
+                if direction == EDANode.UP:
+                    center.y = rec.left_up.y
+                elif direction == EDANode.DOWN:
+                    center.y = rec.right_down.y
+                elif direction == EDANode.LEFT:
+                    center.x = rec.left_up.x
+                elif direction == EDANode.RIGHT:
+                    center.x = rec.right_down.x
+                # 写上红色的字
+                cv2.putText(graph, text, (center.x, center.y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+                pass
+            self.draw("create_net", graph, is_draw=is_draw)
 
         for i in range(node_length):
             if self.nodes[i].node_type == 'bridge':
@@ -262,11 +296,15 @@ class NetlistModel:
                 if len(self.nodes[i].next_node[my_direction]) == 0: # 如果这个方向没有连任何节点，则跳过
                     continue
                 self.nets.append(NetNode(len(self.nets)))
-                self.nodes[i].next_net[my_direction] = len(self.nets) - 1
+
                 for next_direction, next_id in self.nodes[i].next_node[my_direction]:
                     self.nodes[next_id].next_net[next_direction] = len(self.nets) - 1
                     self.nodes[next_id].next_node[next_direction] = []
+                    draw(next_id, next_direction, len(self.nets) - 1)
+
+                self.nodes[i].next_net[my_direction] = len(self.nets) - 1
                 self.nodes[i].next_node[my_direction] = []
+                draw(i, my_direction, len(self.nets) - 1)
 
     def to_netlist(self):
         """

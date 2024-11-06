@@ -16,7 +16,7 @@ def run_main(data_dir: str = './image.png'):
 
     graph, info, file_path = dataset[run_index]
 
-    netlist.run(file_path, os.path.basename(file_path), graph, info, tmp_dir, is_draw=False)
+    netlist.run(file_path, os.path.basename(file_path), graph, info, tmp_dir, is_draw=True)
 
 
 if __name__ == "__main__":

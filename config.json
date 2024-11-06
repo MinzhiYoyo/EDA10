@@ -16,7 +16,7 @@
     "Ind": ["inductor", "inductor-3"],
     "Res": ["resistor", "resistor2", "resistor2_3"],
     "port": ["port"],
-    "+5v": ["antenna", "vdd"],
+    "vdd": ["antenna", "vdd"],
     "bridge": ["cross-line-curved"],
     "cross": ["switch", "switch-3"]
   },
