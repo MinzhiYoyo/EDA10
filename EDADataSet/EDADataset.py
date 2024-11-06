@@ -7,7 +7,7 @@ import numpy as np
 from cv2 import Mat
 from numpy import ndarray, dtype
 
-from Public.EDACV import EDAPoint, EDARectangle
+from EDAPublic.EDACV import EDAPoint, EDARectangle
 from predict import predict
 
 

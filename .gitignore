@@ -2,6 +2,7 @@ MOS_COD
 BJT_COD
 runs
 tmp
+submit*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

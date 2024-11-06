@@ -11,7 +11,7 @@ from sympy.integrals.heurisch import components
 
 from Graph.EDADrawGraph import draw_graph
 from Graph.EDANode import *
-from Public.EDACV import EDARectangle, EDAPoint
+from EDAPublic.EDACV import EDARectangle, EDAPoint
 from mos_detect import detect_mos
 from bjt_detect import detect_bjt
 
@@ -175,7 +175,7 @@ class NetlistModel:
                     new_node.set_direct_to_poly(EDANode.LEFT, 'Base')
                     new_node.set_direct_to_poly(EDANode.UP, 'Emitter') # 随便猜一个方向
                     new_node.set_direct_to_poly(EDANode.RIGHT, 'Collector')
-                    
+
             self.nodes.append(new_node)
 
         # 遍历所有图像，识别wire
@@ -202,6 +202,8 @@ class NetlistModel:
             cv2.waitKey(0)
             cv2.destroyAllWindows()
             self.mp4_release()
+
+        return netlist
 
     def bfs(self, wire_set: set, rbg: np.ndarray, info: list[dict], animal_interval: int = 20, is_draw = False):
         frame_counter = 0
