@@ -1,5 +1,4 @@
 import json
-import random
 from PIL import Image
 from logging import warning
 from queue import Queue
@@ -7,7 +6,6 @@ from queue import Queue
 import cv2
 import numpy as np
 from numpy import ndarray
-from sympy.integrals.heurisch import components
 
 from Graph.EDADrawGraph import draw_graph
 from Graph.EDANode import *
@@ -70,8 +68,16 @@ class NetlistModel:
             corners = np.array([corner.to_numpy() for corner in corners])
             cv2.fillConvexPoly(rgb, corners, component_color.tolist())
         return rgb
-    
+
+    def crop_image_from_source(self, input_image, top_left_x, top_left_y, bottom_right_x, bottom_right_y):
+        # 使用 opencv 裁剪图片 input_image
+        # top_left_x, top_left_y, bottom_right_x, bottom_right_y 是裁剪区域的左上角和右下角坐标
+        return input_image[top_left_y:bottom_right_y, top_left_x:bottom_right_x].copy()
+
+
+
     def crop_image(self, input_path, output_path, top_left_x, top_left_y, bottom_right_x, bottom_right_y):
+        # if isinstance(input_path, str):
         # 打开输入图片
         with Image.open(input_path) as img:
             # 定义裁剪区域
@@ -139,20 +145,28 @@ class NetlistModel:
         if graph is None:
             warning('图像为空')
             return
-        self.mp4_init(tmp_dir, size=(graph.shape[1], graph.shape[0]), file_name = png_file_name.split('.')[0] + '.mp4')
+        if is_draw:
+            self.mp4_init(tmp_dir, size=(graph.shape[1], graph.shape[0]), file_name = png_file_name.split('.')[0] + '.mp4')
+
+        source_graph = graph.copy()
+
         graph, binary = self.image_preprocess(png_file_name, graph, info, tmp_dir, is_draw)
 
         # animal_interval = 20 # 每寻多少个点就画一次
+        graph_poly = None
+        if is_draw:
+            graph_poly = source_graph.copy()
         for i, item in enumerate(info):
-            item_rectangle = item['points']
+            item_rectangle: EDARectangle = item['points']
             corners = item_rectangle.get_corners()
             corners = np.array([corner.to_numpy() for corner in corners])
             item_label = item['label']
-            new_node = EDANode(node_type=self.label_to_type(item_label), id=i)
+            new_node = EDANode(node_type=self.label_to_type(item_label), id=i, rect = item_rectangle)
             if 'MOS' in item_label:
                 # 调用MOS端口识别
-                self.crop_image(png_file_path, f'{tmp_dir}/tmp_mos.png', corners[0][0], corners[0][1], corners[2][0], corners[2][1])
-                mos_ports = detect_mos(f'{tmp_dir}/tmp_mos.png')
+                # self.crop_image(png_file_path, f'{tmp_dir}/tmp_mos.png', corners[0][0], corners[0][1], corners[2][0], corners[2][1])
+                crop_image = self.crop_image_from_source(source_graph, corners[0][0], corners[0][1], corners[2][0], corners[2][1])
+                mos_ports = detect_mos(crop_image)
                 if mos_ports['Gate'] is not None: # 识别成功
                     new_node.set_direct_to_poly(mos_ports['Source'], 'Source')
                     new_node.set_direct_to_poly(mos_ports['Gate'], 'Gate')
@@ -167,8 +181,9 @@ class NetlistModel:
                     new_node.set_direct_to_poly(EDANode.RIGHT, 'Drain')
             elif 'NPN' in item_label or 'PNP' in item_label:
                 # 调用BJT端口识别
-                self.crop_image(png_file_path, f'{tmp_dir}/tmp_bjt.png', corners[0][0], corners[0][1], corners[2][0], corners[2][1])
-                bjt_ports = detect_bjt(f'{tmp_dir}/tmp_bjt.png')
+                # self.crop_image(png_file_path, f'{tmp_dir}/tmp_bjt.png', corners[0][0], corners[0][1], corners[2][0], corners[2][1])
+                crop_image = self.crop_image_from_source(source_graph, corners[0][0], corners[0][1], corners[2][0], corners[2][1])
+                bjt_ports = detect_bjt(crop_image)
                 if bjt_ports['Base'] is not None: # 识别成功
                     new_node.set_direct_to_poly(bjt_ports['Base'], 'Base')
                     new_node.set_direct_to_poly(bjt_ports['Emitter'], 'Emitter')
@@ -181,7 +196,20 @@ class NetlistModel:
                     new_node.set_direct_to_poly(EDANode.LEFT, 'Base')
                     new_node.set_direct_to_poly(EDANode.UP, 'Emitter') # 随便猜一个方向
                     new_node.set_direct_to_poly(EDANode.RIGHT, 'Collector')
-                    
+            if is_draw:
+                for direction, poly in new_node.direct_to_poly.items():
+                    if poly is not None:
+                        point = item_rectangle.center()
+                        if direction == EDANode.UP:
+                            point.y = item_rectangle.left_up.y
+                        elif direction == EDANode.DOWN:
+                            point.y = item_rectangle.right_down.y
+                        elif direction == EDANode.LEFT:
+                            point.x = item_rectangle.left_up.x
+                        elif direction == EDANode.RIGHT:
+                            point.x = item_rectangle.right_down.x
+                        cv2.putText(graph_poly, poly, (point.x, point.y), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 0, 255), 1)
+                        self.draw("draw_poly", graph_poly, is_draw=is_draw)
             self.nodes.append(new_node)
 
         # 遍历所有图像，识别wire
@@ -249,8 +277,10 @@ class NetlistModel:
                             next_id = int(next_point_color[0] - component_color_start[0])
                             next_rect: EDARectangle = info[next_id]['points']
                             next_direct = next_rect.direct(next_point)
-                            record_component_id_direction.append((next_id, next_direct))
-
+                            if (next_id, next_direct) not in record_component_id_direction:
+                                record_component_id_direction.append((next_id, next_direct))
+                            # record_component_id_direction.append((next_id, next_direct))
+            pass
             for i in range(len(record_component_id_direction)):
                 for j in range(i + 1, len(record_component_id_direction)):
                     id_i = record_component_id_direction[i][0]
@@ -283,42 +313,47 @@ class NetlistModel:
     def create_net(self, info: list[dict] = None, graph: np.ndarray = None, is_draw = False):
         node_length = len(self.nodes)
 
-        def draw(id, direction, net_id):
+        def draw(id, direction = None, net_id = None, id_or_net_id = False):
             if is_draw:
                 rec: EDARectangle = info[id]['points']
                 # 在direction的中间写上 net_id
                 center = rec.center()
-                text = str(net_id)
-                if direction == EDANode.UP:
-                    center.y = rec.left_up.y
-                elif direction == EDANode.DOWN:
-                    center.y = rec.right_down.y
-                elif direction == EDANode.LEFT:
-                    center.x = rec.left_up.x
-                elif direction == EDANode.RIGHT:
-                    center.x = rec.right_down.x
-                # 写上红色的字
-                cv2.putText(graph, text, (center.x, center.y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
-                pass
+                # 写上绿色的id，字体小一点
+                if id_or_net_id:
+                    cv2.putText(graph, str(id), (center.x, center.y), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 255), 1)
+                else:
+                    text = str(net_id)
+                    if direction == EDANode.UP:
+                        center.y = rec.left_up.y
+                    elif direction == EDANode.DOWN:
+                        center.y = rec.right_down.y
+                    elif direction == EDANode.LEFT:
+                        center.x = rec.left_up.x
+                    elif direction == EDANode.RIGHT:
+                        center.x = rec.right_down.x
+                    # 写上红色的字
+                    cv2.putText(graph, text, (center.x, center.y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+                    pass
             self.draw("create_net", graph, is_draw=is_draw)
 
-        for i in range(node_length):
-            if self.nodes[i].node_type == 'bridge':
+        for my_id in range(node_length):
+            draw(my_id, id_or_net_id=True)
+            if self.nodes[my_id].node_type == 'bridge':
                 continue
             my_directions = [EDANode.UP, EDANode.DOWN, EDANode.LEFT, EDANode.RIGHT]
             for my_direction in my_directions:
-                if len(self.nodes[i].next_node[my_direction]) == 0: # 如果这个方向没有连任何节点，则跳过
+                if len(self.nodes[my_id].next_node[my_direction]) == 0: # 如果这个方向没有连任何节点，则跳过
                     continue
                 self.nets.append(NetNode(len(self.nets)))
 
-                for next_direction, next_id in self.nodes[i].next_node[my_direction]:
-                    self.nodes[next_id].next_net[next_direction] = len(self.nets) - 1
-                    self.nodes[next_id].next_node[next_direction] = []
-                    draw(next_id, next_direction, len(self.nets) - 1)
+                for next_direction, next_id in self.nodes[my_id].next_node[my_direction]:
+                    self.nodes[next_id].next_net[next_direction].append(len(self.nets) - 1)
+                    self.nodes[next_id].delete_next(next_direction, (my_direction, my_id))
+                    draw(next_id, next_direction, len(self.nets) - 1, False)
 
-                self.nodes[i].next_net[my_direction] = len(self.nets) - 1
-                self.nodes[i].next_node[my_direction] = []
-                draw(i, my_direction, len(self.nets) - 1)
+                self.nodes[my_id].next_net[my_direction].append(len(self.nets) - 1)
+                self.nodes[my_id].next_node[my_direction] = []
+                draw(my_id, my_direction, len(self.nets) - 1, False)
 
     def to_netlist(self):
         """
@@ -347,12 +382,12 @@ class NetlistModel:
                 "component_type": self.nodes[node_id].node_type,
                 "port_connection": {}
             }
-            if(self.nodes[node_id].node_type in self.config['label_dual_port']): # 处理双端口元件被识别错端口数量的潜在问题
-                self.nodes[node_id].process_directions()
+            # if(self.nodes[node_id].node_type in self.config['label_dual_port']): # 处理双端口元件被识别错端口数量的潜在问题
+            #     self.nodes[node_id].process_directions()
             ports = []
             for direction in [EDANode.UP, EDANode.DOWN, EDANode.LEFT, EDANode.RIGHT]:
-                dir_to_ports = [p for p, n in self.nodes[node_id].next_net.items() if n is not None]
-                self.nodes[node_id].set_direct_to_poly(dir_to_ports, self.config['label_netlist_port'][self.nodes[node_id].node_type])
+                # dir_to_ports = [p for p, n in self.nodes[node_id].next_net.items() if n is not None and len(n) > 0]
+                # self.nodes[node_id].set_direct_to_poly(dir_to_ports, self.config['label_netlist_port'][self.nodes[node_id].node_type])
                 port_name, next_net_id = self.nodes[node_id].get_port_name(direction)
                 if port_name is None or next_net_id is None or port_name in [EDANode.UP, EDANode.DOWN, EDANode.LEFT, EDANode.RIGHT]:
                     continue
