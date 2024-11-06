@@ -28,6 +28,12 @@ class EDAPoint:
     def __sub__(self, other):
         return EDAPoint(self.x - other.x, self.y - other.y)
 
+    def __mul__(self, other):
+        return EDAPoint(self.x * other, self.y * other)
+
+    def __truediv__(self, other):
+        return EDAPoint(self.x / other, self.y / other)
+
     def manhattan_distance(self, other):
         return abs(self.x - other.x) + abs(self.y - other.y)
 
