@@ -153,22 +153,36 @@ class NetlistModel:
                 # 调用MOS端口识别
                 self.crop_image(png_file_path, f'{tmp_dir}/tmp_mos.png', corners[0][0], corners[0][1], corners[2][0], corners[2][1])
                 mos_ports = detect_mos(f'{tmp_dir}/tmp_mos.png')
-                if mos_ports != 'Unknown component':
+                if mos_ports['Gate'] is not None: # 识别成功
                     new_node.set_direct_to_poly(mos_ports['Source'], 'Source')
                     new_node.set_direct_to_poly(mos_ports['Gate'], 'Gate')
                     new_node.set_direct_to_poly(mos_ports['Drain'], 'Drain')
+                elif mos_ports['DS'] == 'Vertical': # Drain 和 Source 是上下方向，但 Gate 没识别出来
+                    new_node.set_direct_to_poly(EDANode.UP, 'Source')
+                    new_node.set_direct_to_poly(EDANode.LEFT, 'Gate') # 随便猜一个方向
+                    new_node.set_direct_to_poly(EDANode.DOWN, 'Drain')
+                else: # Drain 和 Source 是左右方向，但 Gate 没识别出来，或者全部识别失败
+                    new_node.set_direct_to_poly(EDANode.LEFT, 'Source')
+                    new_node.set_direct_to_poly(EDANode.UP, 'Gate') # 随便猜一个方向
+                    new_node.set_direct_to_poly(EDANode.RIGHT, 'Drain')
             elif 'NPN' in item_label or 'PNP' in item_label:
                 # 调用BJT端口识别
                 self.crop_image(png_file_path, f'{tmp_dir}/tmp_bjt.png', corners[0][0], corners[0][1], corners[2][0], corners[2][1])
                 bjt_ports = detect_bjt(f'{tmp_dir}/tmp_bjt.png')
-                if bjt_ports != 'Unknown component':
-                    new_node.set_direct_to_poly(bjt_ports['Emitter'], 'Emitter')
+                if bjt_ports['Base'] is not None: # 识别成功
                     new_node.set_direct_to_poly(bjt_ports['Base'], 'Base')
+                    new_node.set_direct_to_poly(bjt_ports['Emitter'], 'Emitter')
                     new_node.set_direct_to_poly(bjt_ports['Collector'], 'Collector')
-            # elif item_label in self.config['label_netlist_port']:
-            #     new_node.set_direct_to_poly()
+                elif bjt_ports['EC'] == 'Vertical': # Emitter 和 Collector 是上下方向，但 Base 没识别出来
+                    new_node.set_direct_to_poly(EDANode.UP, 'Base')
+                    new_node.set_direct_to_poly(EDANode.LEFT, 'Emitter') # 随便猜一个方向
+                    new_node.set_direct_to_poly(EDANode.DOWN, 'Collector')
+                else: # Emitter 和 Collector 是左右方向，但 Base 没识别出来，或者全部识别失败
+                    new_node.set_direct_to_poly(EDANode.LEFT, 'Base')
+                    new_node.set_direct_to_poly(EDANode.UP, 'Emitter') # 随便猜一个方向
+                    new_node.set_direct_to_poly(EDANode.RIGHT, 'Collector')
+                    
             self.nodes.append(new_node)
-            # print(new_node.direct_to_poly)
 
         # 遍历所有图像，识别wire
         wire_set = set()
@@ -333,7 +347,7 @@ class NetlistModel:
                 "component_type": self.nodes[node_id].node_type,
                 "port_connection": {}
             }
-            if(self.nodes[node_id].node_type in self.config['label_dual_port']):
+            if(self.nodes[node_id].node_type in self.config['label_dual_port']): # 处理双端口元件被识别错端口数量的潜在问题
                 self.nodes[node_id].process_directions()
             ports = []
             for direction in [EDANode.UP, EDANode.DOWN, EDANode.LEFT, EDANode.RIGHT]:

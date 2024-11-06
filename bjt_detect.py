@@ -14,7 +14,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
-result = {}
+result = {'EC': None, 'Emitter': None, 'Collector': None, 'Base': None}
 image_path = ''
 
 def binarize_image(image_path):
@@ -193,7 +193,7 @@ def detect_bjt(image_path):
     except Exception as e:
         print(e)
         print("Unknown component")
-        return 'Unknown component'
+        return result
 
 if __name__ == "__main__":
     try:
