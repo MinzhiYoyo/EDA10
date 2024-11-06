@@ -57,7 +57,7 @@ def annotate_image(image_path, save_path, annotations):
         draw.text(((width - text_width) / 2, height - text_height - 10), text, font=font, fill="red")
 
     # 保存修改后的图像
-    image.save(save_path)
+    # image.save(save_path)
 
 def binarize_image(image_path, threshold=128):
     if isinstance(image_path, str):
@@ -103,7 +103,7 @@ def find_peaks_and_second_peak(ratios, imgWidth):
         
     # 打印峰值位置
     # print("Peaks:", peaks)
-    print(peaks)
+    # print(peaks)
     
     if len(peaks) > 1:
         second_peak_index = peaks[1]
@@ -125,6 +125,7 @@ def calculate_ratios(binary_array):
     row_black_ratios = np.sum(binary_array == 0, axis=1) / width
     return column_black_ratios, row_black_ratios
 
+'''
 def calculate_symmetry_score(ratios):
     half = len(ratios) // 2
     left = ratios[:half]
@@ -143,6 +144,7 @@ def analyze_orientation(column_black_ratios, row_black_ratios):
         print("DS Vertical")
     else:
         print("DS Horizontal")
+'''
 
 def analyze_peaks(peaks, center):
     if peaks is None or len(peaks) < 3:
@@ -191,82 +193,77 @@ def plot_ratios(image_path, save_path, column_black_ratios, column_white_ratios,
 
     plt.tight_layout()
     # plt.show()
-    plt.savefig(save_path)
+    # plt.savefig(save_path)
 
 def detect_mos(image_path):
-    try:
-        binary_array = binarize_image(image_path)
-        column_black_ratios, column_white_ratios = calculate_column_ratios(binary_array)
-        row_black_ratios, row_white_ratios = calculate_row_ratios(binary_array)
-        # plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios)
-        # analyze_orientation(column_black_ratios, row_black_ratios)
-        column_peaks, column_second_peak = find_peaks_and_second_peak(column_black_ratios, binary_array.shape[1])
-        row_peaks, row_second_peak = find_peaks_and_second_peak(row_black_ratios, binary_array.shape[0])
-        # sort the peaks
-        column_peaks = np.sort(column_peaks)
-        row_peaks = np.sort(row_peaks)
-        second_peak_index_column, relative_position_column = find_second_peak(column_peaks, column_black_ratios)
-        second_peak_index_row, relative_position_row = find_second_peak(row_peaks, row_black_ratios)
+    binary_array = binarize_image(image_path)
+    column_black_ratios, column_white_ratios = calculate_column_ratios(binary_array)
+    row_black_ratios, row_white_ratios = calculate_row_ratios(binary_array)
+    # plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios)
+    # analyze_orientation(column_black_ratios, row_black_ratios)
+    column_peaks, column_second_peak = find_peaks_and_second_peak(column_black_ratios, binary_array.shape[1])
+    row_peaks, row_second_peak = find_peaks_and_second_peak(row_black_ratios, binary_array.shape[0])
+    # sort the peaks
+    column_peaks = np.sort(column_peaks)
+    row_peaks = np.sort(row_peaks)
+    second_peak_index_column, relative_position_column = find_second_peak(column_peaks, column_black_ratios)
+    second_peak_index_row, relative_position_row = find_second_peak(row_peaks, row_black_ratios)
 
-        save_path = image_path.replace('.png', '_histogram.png')  # 保存图片的路径
-        plot_ratios(image_path, save_path, column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios, column_peaks, row_peaks)
-        
-        ''' 打印一些峰值识别信息
-        if second_peak_index_column is not None:
-            print(f'Second peak index (column): {second_peak_index_column}')
-            print(f'Second peak relative position (column): {relative_position_column}')
+    save_path = image_path.replace('.png', '_histogram.png')  # 保存图片的路径
+    plot_ratios(image_path, save_path, column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios, column_peaks, row_peaks)
+    
+    ''' 打印一些峰值识别信息
+    if second_peak_index_column is not None:
+        print(f'Second peak index (column): {second_peak_index_column}')
+        print(f'Second peak relative position (column): {relative_position_column}')
+    else:
+        print("Less than two peaks found.")
+
+    if second_peak_index_row is not None:
+        print(f'Second peak index (row): {second_peak_index_row}')
+        print(f'Second peak relative position (row): {relative_position_row}')
+    else:
+        print("Less than two peaks found.")
+    '''
+
+    # 计算second_peak_index到中心的距离，若column大于row则为竖直，否则为水平
+    height, width = binary_array.shape
+    center_column = width // 2
+    center_row = height // 2
+    distance_column = abs(second_peak_index_column - center_column)
+    distance_row = abs(second_peak_index_row - center_row)
+    # print(f'Distance to center (column): {distance_column}')
+    # print(f'Distance to center (row): {distance_row}')
+    if distance_column > distance_row:
+        # print("DS Vertical")
+        result['DS'] = 'Vertical'
+        result['Source'] = CV_UP
+        result['Drain'] = CV_DOWN
+        position = analyze_peaks(column_peaks, center_column)
+        # print("Column histogram: Closest peaks are on the", position)
+        if position == CV_LEFT:
+            result['Gate'] = CV_LEFT
         else:
-            print("Less than two peaks found.")
-
-        if second_peak_index_row is not None:
-            print(f'Second peak index (row): {second_peak_index_row}')
-            print(f'Second peak relative position (row): {relative_position_row}')
+            result['Gate'] = CV_RIGHT
+    else:
+        # print("DS Horizontal")
+        result['DS'] = 'Horizontal'
+        result['Source'] = CV_LEFT
+        result['Drain'] = CV_RIGHT
+        position = analyze_peaks(row_peaks, center_row)
+        # print("Row histogram: Closest peaks are on the", position)
+        if position == CV_LEFT:
+            result['Gate'] = CV_UP
         else:
-            print("Less than two peaks found.")
-        '''
+            result['Gate'] = CV_DOWN
 
-        # 计算second_peak_index到中心的距离，若column大于row则为竖直，否则为水平
-        height, width = binary_array.shape
-        center_column = width // 2
-        center_row = height // 2
-        distance_column = abs(second_peak_index_column - center_column)
-        distance_row = abs(second_peak_index_row - center_row)
-        # print(f'Distance to center (column): {distance_column}')
-        # print(f'Distance to center (row): {distance_row}')
-        if distance_column > distance_row:
-            # print("DS Vertical")
-            result['DS'] = 'Vertical'
-            result['Source'] = CV_UP
-            result['Drain'] = CV_DOWN
-            position = analyze_peaks(column_peaks, center_column)
-            # print("Column histogram: Closest peaks are on the", position)
-            if position == CV_LEFT:
-                result['Gate'] = CV_LEFT
-            else:
-                result['Gate'] = CV_RIGHT
-        else:
-            # print("DS Horizontal")
-            result['DS'] = 'Horizontal'
-            result['Source'] = CV_LEFT
-            result['Drain'] = CV_RIGHT
-            position = analyze_peaks(row_peaks, center_row)
-            # print("Row histogram: Closest peaks are on the", position)
-            if position == CV_LEFT:
-                result['Gate'] = CV_UP
-            else:
-                result['Gate'] = CV_DOWN
+    result['Body'] = result['Source']
+    # print(result)
 
-        result['Body'] = result['Source']
-        # print(result)
+    save_path = image_path.replace('.png', '_annotated.png')  # 保存图片的路径
+    annotate_image(image_path, save_path, result)
 
-        save_path = image_path.replace('.png', '_annotated.png')  # 保存图片的路径
-        annotate_image(image_path, save_path, result)
-
-        return result
-    except Exception as e:
-        print(e)
-        print("Unknown component")
-        return result
+    return result
 
 if __name__ == "__main__":
     try:

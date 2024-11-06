@@ -150,53 +150,48 @@ def annotate_image(image_path, save_path, annotations):
     image.save(save_path)
 
 def detect_bjt(image_path):
-    try:
-        binary_image = binarize_image(image_path)
-        lr_symmetry, ud_symmetry = calculate_symmetry(binary_image)
-        column_black_ratios, column_white_ratios = calculate_column_ratios(binary_image)
-        row_black_ratios, row_white_ratios = calculate_row_ratios(binary_image)
+    binary_image = binarize_image(image_path)
+    lr_symmetry, ud_symmetry = calculate_symmetry(binary_image)
+    column_black_ratios, column_white_ratios = calculate_column_ratios(binary_image)
+    row_black_ratios, row_white_ratios = calculate_row_ratios(binary_image)
 
-        horizontal_bias, vertical_bias = calculate_centroid(binary_image)
-        print(f"Centroid is biased to the {horizontal_bias} and {vertical_bias}.")
+    horizontal_bias, vertical_bias = calculate_centroid(binary_image)
+    # print(f"Centroid is biased to the {horizontal_bias} and {vertical_bias}.")
 
-        # 比较对称性
-        if lr_symmetry > ud_symmetry:
-            print("EC horizontal")
-            result['EC'] = 'Horizontal'
-            if horizontal_bias == CV_LEFT:
-                result['Emitter'] = CV_LEFT
-                result['Collector'] = CV_RIGHT
-            else:
-                result['Emitter'] = CV_RIGHT
-                result['Collector'] = CV_LEFT
-            if vertical_bias == CV_UP:
-                result['Base'] = CV_UP
-            else:
-                result['Base'] = CV_DOWN
+    # 比较对称性
+    if lr_symmetry > ud_symmetry:
+        # print("EC horizontal")
+        result['EC'] = 'Horizontal'
+        if horizontal_bias == CV_LEFT:
+            result['Emitter'] = CV_LEFT
+            result['Collector'] = CV_RIGHT
         else:
-            print("EC vertical")
-            result['EC'] = 'Vertical'
-            if vertical_bias == CV_UP:
-                result['Emitter'] = CV_UP
-                result['Collector'] = CV_DOWN
-            else:
-                result['Emitter'] = CV_DOWN
-                result['Collector'] = CV_UP
-            if horizontal_bias == CV_LEFT:
-                result['Base'] = CV_LEFT
-            else:
-                result['Base'] = CV_RIGHT
-        
-        print(result)
-        save_path = image_path.replace('.png', '_annotated.png')  # 保存图片的路径
-        annotate_image(image_path, save_path, result)
-        plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios)
+            result['Emitter'] = CV_RIGHT
+            result['Collector'] = CV_LEFT
+        if vertical_bias == CV_UP:
+            result['Base'] = CV_UP
+        else:
+            result['Base'] = CV_DOWN
+    else:
+        # print("EC vertical")
+        result['EC'] = 'Vertical'
+        if vertical_bias == CV_UP:
+            result['Emitter'] = CV_UP
+            result['Collector'] = CV_DOWN
+        else:
+            result['Emitter'] = CV_DOWN
+            result['Collector'] = CV_UP
+        if horizontal_bias == CV_LEFT:
+            result['Base'] = CV_LEFT
+        else:
+            result['Base'] = CV_RIGHT
+    
+    # print(result)
+    save_path = image_path.replace('.png', '_annotated.png')  # 保存图片的路径
+    annotate_image(image_path, save_path, result)
+    plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios)
 
-        return result
-    except Exception as e:
-        print(e)
-        print("Unknown component")
-        return result
+    return result
 
 if __name__ == "__main__":
     try:
