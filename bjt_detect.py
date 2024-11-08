@@ -13,16 +13,25 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-from Public.EDACV import CV_UP, CV_DOWN, CV_LEFT, CV_RIGHT
+from EDAPublic.EDACV import CV_UP, CV_DOWN, CV_LEFT, CV_RIGHT
 result = {'EC': None, 'Emitter': None, 'Collector': None, 'Base': None}
 image_path = ''
+
+# 降维
+def convert_row(row):
+    count_greater_equal = np.sum(row >= 128)
+    # 返回 0 或 1
+    return 1 if count_greater_equal >= 2 else 0
 
 def binarize_image(image_path):
     if isinstance(image_path, str):
         # 读取图像
         image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     else:
-        image = image_path
+        binary_image = image_path
+        if len(binary_image.shape) == 3:
+            binary_image = np.apply_along_axis(convert_row, 2, binary_image)
+            return binary_image
     # 二值化
     _, binary_image = cv2.threshold(image, 128, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
     return binary_image
@@ -187,9 +196,9 @@ def detect_bjt(image_path):
             result['Base'] = CV_RIGHT
     
     # print(result)
-    save_path = image_path.replace('.png', '_annotated.png')  # 保存图片的路径
-    annotate_image(image_path, save_path, result)
-    plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios)
+    # save_path = image_path.replace('.png', '_annotated.png')  # 保存图片的路径
+    # annotate_image(image_path, save_path, result)
+    # plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios)
 
     return result
 

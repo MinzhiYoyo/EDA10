@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 import sys
 
-from Public.EDACV import CV_RIGHT, CV_LEFT, CV_UP, CV_DOWN
+from EDAPublic.EDACV import CV_RIGHT, CV_LEFT, CV_UP, CV_DOWN
 
 result = {'DS': None, 'Source': None, 'Drain': None, 'Gate': None, 'Body': None}
 image_path = ''
@@ -59,6 +59,12 @@ def annotate_image(image_path, save_path, annotations):
     # 保存修改后的图像
     # image.save(save_path)
 
+# 降维
+def convert_row(row):
+    count_greater_equal = np.sum(row >= 128)
+    # 返回 0 或 1
+    return 1 if count_greater_equal >= 2 else 0
+
 def binarize_image(image_path, threshold=128):
     if isinstance(image_path, str):
         # 打开图像并转换为灰度
@@ -68,6 +74,10 @@ def binarize_image(image_path, threshold=128):
         # 二值化处理
     else:
         image_array = image_path
+        # 先判断数组维数
+        if len(image_array.shape) == 3:
+            binary_array = np.apply_along_axis(convert_row, 2, image_array)
+            return binary_array
     binary_array = (image_array > threshold).astype(int)
     return binary_array
 
@@ -209,8 +219,8 @@ def detect_mos(image_path):
     second_peak_index_column, relative_position_column = find_second_peak(column_peaks, column_black_ratios)
     second_peak_index_row, relative_position_row = find_second_peak(row_peaks, row_black_ratios)
 
-    save_path = image_path.replace('.png', '_histogram.png')  # 保存图片的路径
-    plot_ratios(image_path, save_path, column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios, column_peaks, row_peaks)
+    # save_path = image_path.replace('.png', '_histogram.png')  # 保存图片的路径
+    # plot_ratios(image_path, save_path, column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios, column_peaks, row_peaks)
     
     ''' 打印一些峰值识别信息
     if second_peak_index_column is not None:
@@ -260,8 +270,8 @@ def detect_mos(image_path):
     result['Body'] = result['Source']
     # print(result)
 
-    save_path = image_path.replace('.png', '_annotated.png')  # 保存图片的路径
-    annotate_image(image_path, save_path, result)
+    # save_path = image_path.replace('.png', '_annotated.png')  # 保存图片的路径
+    # annotate_image(image_path, save_path, result)
 
     return result
 

@@ -14,9 +14,10 @@ def run_main(data_dir: str = './image.png'):
     dataset = EDADataset(data_dir, need_read_json=False)
     netlist = NetlistModel()
 
-    graph, info, file_path = dataset[run_index]
-
-    netlist.run(file_path, os.path.basename(file_path), graph, info, tmp_dir, is_draw=True, animal_interval = 50)
+    for run_index in range(len(dataset)):
+        graph, info, file_path = dataset[run_index]
+        output_netlist = netlist.run(file_path, os.path.basename(file_path), graph, info, tmp_dir, is_draw=False, animal_interval = 50)
+        print(output_netlist)
 
 
 if __name__ == "__main__":

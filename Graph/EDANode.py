@@ -1,6 +1,6 @@
 import random
 
-from Public.EDACV import CV_UP, CV_DOWN, CV_LEFT, CV_RIGHT
+from EDAPublic.EDACV import CV_UP, CV_DOWN, CV_LEFT, CV_RIGHT
 
 
 # 颜色标志：导线是绿色的，走过的导线是浅绿色

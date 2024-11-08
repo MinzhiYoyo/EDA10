@@ -28,7 +28,7 @@ model = YOLO("best.pt")
 model = model.to('cpu')
 def predict(image_path):
     img = Image.open(image_path)
-    results = model.predict(source=img, save=True, save_txt=True)
+    results = model.predict(source=img, conf=0.3, save=True, save_txt=True)
     resultsDict = []
 
     for cpn in range(len(results[0].boxes.xyxy)):
