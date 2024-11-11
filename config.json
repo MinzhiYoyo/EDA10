@@ -58,10 +58,6 @@
     "Ind": ["Pos", "Neg"],
     "Res": ["Pos", "Neg"]
   },
-  "label_to_port": {
-    "Cap": ["positive", "negative"],
-    "cross": ["switch", "switch-3"]
-  },
   "colors": {
     "wire": [0,0,0],
     "wire_close": [0, 255, 0],
