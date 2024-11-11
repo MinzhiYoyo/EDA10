@@ -14,6 +14,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 import sys
+import cv2
 
 from EDAPublic.EDACV import CV_RIGHT, CV_LEFT, CV_UP, CV_DOWN
 
@@ -216,8 +217,8 @@ def detect_mos(image_path):
     # sort the peaks
     column_peaks = np.sort(column_peaks)
     row_peaks = np.sort(row_peaks)
-    second_peak_index_column, relative_position_column = find_second_peak(column_peaks, column_black_ratios)
-    second_peak_index_row, relative_position_row = find_second_peak(row_peaks, row_black_ratios)
+    # second_peak_index_column, relative_position_column = find_second_peak(column_peaks, column_black_ratios)
+    # second_peak_index_row, relative_position_row = find_second_peak(row_peaks, row_black_ratios)
 
     # save_path = image_path.replace('.png', '_histogram.png')  # 保存图片的路径
     # plot_ratios(image_path, save_path, column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios, column_peaks, row_peaks)
@@ -240,8 +241,8 @@ def detect_mos(image_path):
     height, width = binary_array.shape
     center_column = width // 2
     center_row = height // 2
-    distance_column = abs(second_peak_index_column - center_column)
-    distance_row = abs(second_peak_index_row - center_row)
+    distance_column = abs(column_second_peak - center_column)
+    distance_row = abs(row_second_peak - center_row)
     # print(f'Distance to center (column): {distance_column}')
     # print(f'Distance to center (row): {distance_row}')
     if distance_column > distance_row:
@@ -268,7 +269,7 @@ def detect_mos(image_path):
             result['Gate'] = CV_DOWN
 
     result['Body'] = result['Source']
-    # print(result)
+    print(result)
 
     # save_path = image_path.replace('.png', '_annotated.png')  # 保存图片的路径
     # annotate_image(image_path, save_path, result)
