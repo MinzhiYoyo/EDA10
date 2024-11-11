@@ -33,8 +33,9 @@ class NetlistModel:
             self.mp4_write(graph)
             cv2.waitKey(timeout)
 
-    def save_tmp(self, title, graph, tmp_dir):
-        cv2.imwrite(f'{tmp_dir}/{title}.png', graph)
+    def save_tmp(self, title, graph, tmp_dir, is_draw):
+        if is_draw:
+            cv2.imwrite(f'{tmp_dir}/{title}.png', graph)
 
     def mp4_init(self, tmp_dir, fps: int = 60, size: tuple[int, int] = (640, 480), file_name: str = 'output.mp4'):
         # 使用MPEG-4编码
@@ -58,14 +59,17 @@ class NetlistModel:
                 if binary[i][j] == 0:
                     rgb[i][j] = self.colors['wire']
 
-        # 将所有元器件上色
-        for index, item in enumerate(info):
-            item_rectangle = item['points']
-            component_color = self.colors['component_add'] + index
-            component_color[1] = 0
-            corners = item_rectangle.get_corners()
-            corners = np.array([corner.to_numpy() for corner in corners])
-            cv2.fillConvexPoly(rgb, corners, component_color.tolist())
+        # # 将所有元器件上色
+        # for index, item in enumerate(info):
+        #     item_label = item['label']
+        #
+        #
+        #     item_rectangle = item['points']
+        #     component_color = self.colors['component_add'] + index
+        #     component_color[1] = 0
+        #     corners = item_rectangle.get_corners()
+        #     corners = np.array([corner.to_numpy() for corner in corners])
+        #     cv2.fillConvexPoly(rgb, corners, component_color.tolist())
         return rgb
 
     def crop_image_from_source(self, input_image, top_left_x, top_left_y, bottom_right_x, bottom_right_y):
@@ -104,34 +108,40 @@ class NetlistModel:
         # 1. 对图进行灰度处理
         # 2. 对图进行二值化处理
         self.draw(f'origin_{png_file_name}', graph, is_draw)
-        self.save_tmp(f'origin_{png_file_name}', graph, tmp_dir)
+        self.save_tmp(f'origin_{png_file_name}', graph, tmp_dir, is_draw)
         gray = cv2.cvtColor(graph, cv2.COLOR_BGR2GRAY)
         self.draw(f'gray_{png_file_name}', gray, is_draw)
-        self.save_tmp(f'gray_{png_file_name}', gray, tmp_dir)
+        self.save_tmp(f'gray_{png_file_name}', gray, tmp_dir, is_draw)
         _, binary = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)
         self.draw(f'binary_{png_file_name}', binary, is_draw)
-        self.save_tmp(f'binary_{png_file_name}', binary, tmp_dir)
+        self.save_tmp(f'binary_{png_file_name}', binary, tmp_dir, is_draw)
         # 腐蚀
         kernel = np.ones((3, 3), np.uint8)
         binary = cv2.erode(binary, kernel, iterations=1)
         self.draw(f'erode_{png_file_name}', binary, is_draw)
-        self.save_tmp(f'erode_{png_file_name}', binary, tmp_dir)
+        self.save_tmp(f'erode_{png_file_name}', binary, tmp_dir, is_draw)
         rgb = cv2.cvtColor(binary, cv2.COLOR_GRAY2RGB)
 
         # 图像操作结束，开始填色
         # 将所有黑色的地方变成wire
 
         self.draw(f'rgb_{png_file_name}', rgb, is_draw)
-        self.save_tmp(f'rgb_{png_file_name}', rgb, tmp_dir)
-        self.reset_rgb(binary, rgb, info)
-
-        self.draw(f'draw_wire_{png_file_name}', rgb, is_draw)
-        self.save_tmp(f'draw_wire_{png_file_name}', rgb, tmp_dir)
+        self.save_tmp(f'rgb_{png_file_name}', rgb, tmp_dir, is_draw)
+        self.reset_rgb(binary, rgb, info)  # 画线
 
         self.draw(f'draw_component_{png_file_name}', rgb, is_draw)
-        self.save_tmp(f'draw_component_{png_file_name}', rgb, tmp_dir)
+        self.save_tmp(f'draw_component_{png_file_name}', rgb, tmp_dir, is_draw)
 
         return rgb, binary
+
+    def draw_component(self,index, rgb, rect, is_draw):
+        component_color = self.colors['component_add'] + index
+        component_color[1] = 0
+        corners = rect.get_corners()
+        corners = np.array([corner.to_numpy() for corner in corners])
+        cv2.fillConvexPoly(rgb, corners, component_color.tolist())
+        self.draw(f'draw_component', rgb, is_draw)
+        return rgb
 
     def label_to_type(self, label: str):
         for k, v in self.config['label_trans'].items():
@@ -157,13 +167,15 @@ class NetlistModel:
             graph_poly = source_graph.copy()
 
         for i, item in enumerate(info):
-            item_label = item['label']
             item_rectangle: EDARectangle = item['points']
+            item_label = item['label']
             if item_label != 'bridge':
                 continue
+
             corners = item_rectangle.get_corners()
             corners = np.array([corner.to_numpy() for corner in corners])
             new_node = EDANode(node_type=self.label_to_type(item_label), id=i, rect = item_rectangle)
+            self.draw_component(i, graph, item_rectangle, is_draw)  # 填充元器件颜色
             self.nodes.append(new_node)
 
         for i, item in enumerate(info):
@@ -174,6 +186,8 @@ class NetlistModel:
             corners = item_rectangle.get_corners()
             corners = np.array([corner.to_numpy() for corner in corners])
             new_node = EDANode(node_type=self.label_to_type(item_label), id=i, rect = item_rectangle)
+            self.draw_component(i, graph, item_rectangle, is_draw)  # 填充元器件颜色
+
             if 'MOS' in item_label:
                 # 调用MOS端口识别
                 # self.crop_image(png_file_path, f'{tmp_dir}/tmp_mos.png', corners[0][0], corners[0][1], corners[2][0], corners[2][1])
