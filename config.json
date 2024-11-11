@@ -10,7 +10,7 @@
     "Diode": ["diode"],
     "Diso_amp": ["diff-amp", "single-end-amp"],
     "Siso_amp": ["single-input-single-end-amp"],
-    "Dido_amp": [],
+    "Dido_amp": ["dido-amp"],
     "Cap": ["capacitor", "capacitor-3"],
     "Gnd": ["gnd"],
     "Ind": ["inductor", "inductor-3"],
@@ -37,7 +37,7 @@
     "Ind": "InductorNode",
     "Res": "ResistorNode",
     "port": "NetNode",
-    "+5v": "NetNode",
+    "vdd": "NetNode",
     "bridge": "BridgeNode",
     "cross": "NetNode"
   },

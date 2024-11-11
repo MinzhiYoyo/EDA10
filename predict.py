@@ -4,7 +4,7 @@ from ultralytics import YOLO
 import math
 
 classes = {
-    '0': 'PMOS',
+    '0': 'pmos',
     '1': 'NMOS',
     '2': 'Voltage',
     '3': 'Current',
@@ -13,7 +13,7 @@ classes = {
     '6': 'Diode',
     '7': 'Diso_amp',
     '8': 'Siso_amp',
-    '9': 'Dido_amp',
+    '9': 'dido_amp',
     '10': 'Cap',
     '11': 'port', # 'Gnd,port,vdd',
     '12': 'Ind',
