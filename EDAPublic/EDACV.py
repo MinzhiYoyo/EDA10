@@ -1,5 +1,10 @@
 import numpy as np
 
+CV_UP = "up"
+CV_DOWN = "down"
+CV_LEFT = "left"
+CV_RIGHT = "right"
+CV_CENTER = "center"
 
 # 右为x轴正方向，下为y轴正方向
 
@@ -22,6 +27,12 @@ class EDAPoint:
 
     def __sub__(self, other):
         return EDAPoint(self.x - other.x, self.y - other.y)
+
+    def __mul__(self, other):
+        return EDAPoint(self.x * other, self.y * other)
+
+    def __truediv__(self, other):
+        return EDAPoint(self.x / other, self.y / other)
 
     def manhattan_distance(self, other):
         return abs(self.x - other.x) + abs(self.y - other.y)
@@ -70,13 +81,13 @@ class EDARectangle:
 
     # 获取四个边
     def get_edge(self, direction):
-        if direction == 'left':
+        if direction == CV_LEFT:
             return self.left_up.get_vertical_points(self.right_down.y)
-        elif direction == 'right':
+        elif direction == CV_RIGHT:
             return EDAPoint(self.right_down.x, self.left_up.y).get_vertical_points(self.right_down.y)
-        elif direction == 'up':
+        elif direction == CV_UP:
             return self.left_up.get_horizontal_points(self.right_down.x)
-        elif direction == 'down':
+        elif direction == CV_DOWN:
             return EDAPoint(self.left_up.x, self.right_down.y).get_horizontal_points(self.right_down.x)
         else:
             raise ValueError('方向错误')
@@ -111,15 +122,15 @@ class EDARectangle:
         # 哪个最小就是哪个方向，如果有多个最小，优先级为左右上下，如果都一样，那么为中间
         min_value = min(to_left, to_right, to_up, to_down)
         if min_value == to_left == to_right == to_up == to_down:
-            return 'Center'
+            return CV_CENTER
         if min_value == to_left:
-            return 'Left'
+            return CV_LEFT
         elif min_value == to_right:
-            return 'Right'
+            return CV_RIGHT
         elif min_value == to_up:
-            return 'Up'
+            return CV_UP
         else:
-            return 'Down'
+            return CV_DOWN
 
 
 

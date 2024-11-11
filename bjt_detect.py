@@ -13,13 +13,27 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-
+from EDAPublic.EDACV import CV_UP, CV_DOWN, CV_LEFT, CV_RIGHT
 result = {'EC': None, 'Emitter': None, 'Collector': None, 'Base': None}
 image_path = ''
 
+# 降维
+def convert_row(row):
+    count_greater_equal = np.sum(row >= 128)
+    # 返回 0 或 1
+    return 1 if count_greater_equal >= 2 else 0
+
 def binarize_image(image_path):
-    # 读取图像
-    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    if isinstance(image_path, str):
+        # 读取图像
+        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    else:
+        # 使用cv2的灰度化
+        image = cv2.cvtColor(image_path, cv2.COLOR_BGR2GRAY)
+
+        # if len(binary_image.shape) == 3:
+        #     binary_image = np.apply_along_axis(convert_row, 2, binary_image)
+        #     return binary_image
     # 二值化
     _, binary_image = cv2.threshold(image, 128, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
     return binary_image
@@ -59,8 +73,8 @@ def calculate_centroid(binary_image):
         cx, cy = w // 2, h // 2
 
     # 判断重心方向
-    horizontal_bias = "left" if cx < w / 2 else "right"
-    vertical_bias = "up" if cy < h / 2 else "down"
+    horizontal_bias = CV_LEFT if cx < w / 2 else CV_RIGHT
+    vertical_bias = CV_UP if cy < h / 2 else CV_DOWN
 
     return horizontal_bias, vertical_bias
 
@@ -120,24 +134,24 @@ def annotate_image(image_path, save_path, annotations):
     width, height = image.size
     
     # 根据字典在对应的边上写入文字
-    if 'Left' in annotations.values():
-        text = [k for k, v in annotations.items() if v == 'Left'][0]
+    if CV_LEFT in annotations.values():
+        text = [k for k, v in annotations.items() if v == CV_LEFT][0]
         draw.text((10, height / 2), text, font=font, fill="red")
 
-    if 'Right' in annotations.values():
-        text = [k for k, v in annotations.items() if v == 'Right'][0]
+    if CV_RIGHT in annotations.values():
+        text = [k for k, v in annotations.items() if v == CV_RIGHT][0]
         bbox = draw.textbbox((0, 0), text, font=font)
         text_width = bbox[2] - bbox[0]
         draw.text((width - text_width - 10, height / 2), text, font=font, fill="red")
 
-    if 'Up' in annotations.values():
-        text = [k for k, v in annotations.items() if v == 'Up'][0]
+    if CV_UP in annotations.values():
+        text = [k for k, v in annotations.items() if v == CV_UP][0]
         bbox = draw.textbbox((0, 0), text, font=font)
         text_width = bbox[2] - bbox[0]
         draw.text(((width - text_width) / 2, 10), text, font=font, fill="red")
         
-    if 'Down' in annotations.values():
-        text = [k for k, v in annotations.items() if v == 'Down'][0]
+    if CV_DOWN in annotations.values():
+        text = [k for k, v in annotations.items() if v == CV_DOWN][0]
         bbox = draw.textbbox((0, 0), text, font=font)
         text_width = bbox[2] - bbox[0]
         text_height = bbox[3] - bbox[1]
@@ -147,53 +161,48 @@ def annotate_image(image_path, save_path, annotations):
     image.save(save_path)
 
 def detect_bjt(image_path):
-    try:
-        binary_image = binarize_image(image_path)
-        lr_symmetry, ud_symmetry = calculate_symmetry(binary_image)
-        column_black_ratios, column_white_ratios = calculate_column_ratios(binary_image)
-        row_black_ratios, row_white_ratios = calculate_row_ratios(binary_image)
+    binary_image = binarize_image(image_path)
+    lr_symmetry, ud_symmetry = calculate_symmetry(binary_image)
+    column_black_ratios, column_white_ratios = calculate_column_ratios(binary_image)
+    row_black_ratios, row_white_ratios = calculate_row_ratios(binary_image)
 
-        horizontal_bias, vertical_bias = calculate_centroid(binary_image)
-        print(f"Centroid is biased to the {horizontal_bias} and {vertical_bias}.")
+    horizontal_bias, vertical_bias = calculate_centroid(binary_image)
+    # print(f"Centroid is biased to the {horizontal_bias} and {vertical_bias}.")
 
-        # 比较对称性
-        if lr_symmetry > ud_symmetry:
-            print("EC horizontal")
-            result['EC'] = 'Horizontal'
-            if horizontal_bias == "left":
-                result['Emitter'] = 'Left'
-                result['Collector'] = 'Right'
-            else:
-                result['Emitter'] = 'Right'
-                result['Collector'] = 'Left'
-            if vertical_bias == "up":
-                result['Base'] = 'Up'
-            else:
-                result['Base'] = 'Down'
+    # 比较对称性
+    if lr_symmetry > ud_symmetry:
+        # print("EC horizontal")
+        result['EC'] = 'Horizontal'
+        if horizontal_bias == CV_LEFT:
+            result['Emitter'] = CV_LEFT
+            result['Collector'] = CV_RIGHT
         else:
-            print("EC vertical")
-            result['EC'] = 'Vertical'
-            if vertical_bias == "up":
-                result['Emitter'] = 'Up'
-                result['Collector'] = 'Down'
-            else:
-                result['Emitter'] = 'Down'
-                result['Collector'] = 'Up'
-            if horizontal_bias == "left":
-                result['Base'] = 'Left'
-            else:
-                result['Base'] = 'Right'
-        
-        print(result)
-        save_path = image_path.replace('.png', '_annotated.png')  # 保存图片的路径
-        annotate_image(image_path, save_path, result)
-        plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios)
+            result['Emitter'] = CV_RIGHT
+            result['Collector'] = CV_LEFT
+        if vertical_bias == CV_UP:
+            result['Base'] = CV_UP
+        else:
+            result['Base'] = CV_DOWN
+    else:
+        # print("EC vertical")
+        result['EC'] = 'Vertical'
+        if vertical_bias == CV_UP:
+            result['Emitter'] = CV_UP
+            result['Collector'] = CV_DOWN
+        else:
+            result['Emitter'] = CV_DOWN
+            result['Collector'] = CV_UP
+        if horizontal_bias == CV_LEFT:
+            result['Base'] = CV_LEFT
+        else:
+            result['Base'] = CV_RIGHT
 
-        return result
-    except Exception as e:
-        print(e)
-        print("Unknown component")
-        return result
+    # print(result)
+    # save_path = image_path.replace('.png', '_annotated.png')  # 保存图片的路径
+    # annotate_image(image_path, save_path, result)
+    # plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios)
+
+    return result
 
 if __name__ == "__main__":
     try:
