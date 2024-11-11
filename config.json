@@ -21,26 +21,6 @@
     "cross": ["switch", "switch-3"]
   },
   "netlist_components": ["PMOS", "NMOS", "Voltage", "Current", "NPN", "PNP", "Diode", "Diso_amp", "Siso_amp", "Dido_amp", "Cap", "Ind", "Res"],
-  "label_class": {
-    "PMOS": "PMOSNode",
-    "NMOS": "NMOSNode",
-    "Voltage": "VoltageSourceNode",
-    "Current": "CurrentSourceNode",
-    "NPN": "NPNNode",
-    "PNP": "PNPNode",
-    "Diode": "DiodeNode",
-    "Diso_amp": "DisoAmpNode",
-    "Siso_amp": "SisoAmpNode",
-    "Dido_amp": "",
-    "Cap": "CapacitorNode",
-    "Gnd": "NetNode",
-    "Ind": "InductorNode",
-    "Res": "ResistorNode",
-    "port": "NetNode",
-    "+5v": "NetNode",
-    "bridge": "BridgeNode",
-    "cross": "NetNode"
-  },
   "label_netlist_port": {
     "PMOS": ["Drain", "Source", "Gate", "Body"],
     "NMOS": ["Drain", "Source", "Gate", "Body"],

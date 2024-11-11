@@ -23,7 +23,6 @@ class NetlistModel:
         self.colors = self.config['colors']
         for k in self.colors.keys():
             self.colors[k] = np.array(self.colors[k])
-        # self.label_class = self.config['label_class']
         self.nodes: list[EDANode] = []
         self.nets: list[NetNode] = []
         self.netlist_components = self.config['netlist_components']
@@ -156,11 +155,24 @@ class NetlistModel:
         graph_poly = None
         if is_draw:
             graph_poly = source_graph.copy()
+
         for i, item in enumerate(info):
+            item_label = item['label']
             item_rectangle: EDARectangle = item['points']
+            if item_label != 'bridge':
+                continue
             corners = item_rectangle.get_corners()
             corners = np.array([corner.to_numpy() for corner in corners])
+            new_node = EDANode(node_type=self.label_to_type(item_label), id=i, rect = item_rectangle)
+            self.nodes.append(new_node)
+
+        for i, item in enumerate(info):
+            item_rectangle: EDARectangle = item['points']
             item_label = item['label']
+            if item_label == 'bridge':
+                continue
+            corners = item_rectangle.get_corners()
+            corners = np.array([corner.to_numpy() for corner in corners])
             new_node = EDANode(node_type=self.label_to_type(item_label), id=i, rect = item_rectangle)
             if 'MOS' in item_label:
                 # 调用MOS端口识别

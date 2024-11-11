@@ -8,12 +8,13 @@
 #       Body：衬底（根据赛题指南与源极相连）
 # 调用方法：python mos_detect.py <image_path>
 ##########################################################
-import cv2
+
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 import sys
+import cv2
 
 from EDAPublic.EDACV import CV_RIGHT, CV_LEFT, CV_UP, CV_DOWN
 
