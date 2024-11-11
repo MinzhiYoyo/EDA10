@@ -117,7 +117,7 @@ def find_second_peak(peaks, column_black_ratios):
         relative_position = second_peak_index / len(column_black_ratios)
         return second_peak_index, relative_position
     else:
-        return None, None
+        return peaks[0], None
 
 def calculate_ratios(binary_array):
     height, width = binary_array.shape

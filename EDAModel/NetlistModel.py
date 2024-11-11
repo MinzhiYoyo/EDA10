@@ -23,7 +23,6 @@ class NetlistModel:
         self.colors = self.config['colors']
         for k in self.colors.keys():
             self.colors[k] = np.array(self.colors[k])
-        # self.label_class = self.config['label_class']
         self.nodes: list[EDANode] = []
         self.nets: list[NetNode] = []
         self.netlist_components = self.config['netlist_components']
@@ -109,7 +108,7 @@ class NetlistModel:
         gray = cv2.cvtColor(graph, cv2.COLOR_BGR2GRAY)
         self.draw(f'gray_{png_file_name}', gray, is_draw)
         self.save_tmp(f'gray_{png_file_name}', gray, tmp_dir)
-        _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, binary = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)
         self.draw(f'binary_{png_file_name}', binary, is_draw)
         self.save_tmp(f'binary_{png_file_name}', binary, tmp_dir)
         # 腐蚀
@@ -141,7 +140,7 @@ class NetlistModel:
         return label
 
     # 执行一张图
-    def run(self, png_file_path, png_file_name, graph: ndarray, info: list[dict], tmp_dir: str, is_draw: bool = False, animal_interval: int = 20):
+    def run(self, png_file_path, png_file_name, graph: ndarray, info: list[dict], tmp_dir: str, is_draw: bool = False, animal_interval = 20):
         if graph is None:
             warning('图像为空')
             return
@@ -156,11 +155,24 @@ class NetlistModel:
         graph_poly = None
         if is_draw:
             graph_poly = source_graph.copy()
+
         for i, item in enumerate(info):
+            item_label = item['label']
             item_rectangle: EDARectangle = item['points']
+            if item_label != 'bridge':
+                continue
             corners = item_rectangle.get_corners()
             corners = np.array([corner.to_numpy() for corner in corners])
+            new_node = EDANode(node_type=self.label_to_type(item_label), id=i, rect = item_rectangle)
+            self.nodes.append(new_node)
+
+        for i, item in enumerate(info):
+            item_rectangle: EDARectangle = item['points']
             item_label = item['label']
+            if item_label == 'bridge':
+                continue
+            corners = item_rectangle.get_corners()
+            corners = np.array([corner.to_numpy() for corner in corners])
             new_node = EDANode(node_type=self.label_to_type(item_label), id=i, rect = item_rectangle)
             if 'MOS' in item_label:
                 # 调用MOS端口识别
@@ -249,10 +261,16 @@ class NetlistModel:
 
         return netlist
 
-    def bfs(self, wire_set: set, rbg: np.ndarray, info: list[dict], animal_interval: int = 20, is_draw = False):
+    def bfs(self, wire_set: set, rbg: np.ndarray, info: list[dict], animal_interval = 20, is_draw = False):
+        if isinstance(animal_interval, int):
+            pass
+        elif isinstance(animal_interval, float):
+            assert 0 < animal_interval < 1, f"Invalid animal_interval {animal_interval}, must be in (0, 1)"
+            animal_interval = int(animal_interval * len(wire_set))
+
         frame_counter = 0
         while len(wire_set) > 0:
-            record_component_id_direction = [] # (id, direction)
+            record_component_id_direction = [] # (id, direction, point)
             start_point = wire_set.pop()
             q = Queue()
             q.put(start_point)
@@ -265,7 +283,7 @@ class NetlistModel:
 
                 current_point = q.get()
                 next_points = [current_point + EDAPoint(*direct_point) for direct_point in EDAPoint.DIRECTIONS_POINT]
-                for next_point in next_points:
+                for next_point in next_points:  # 遍历当前点的上下左右四个点
                     if next_point.is_invalid(rbg):
                         continue
 
@@ -279,18 +297,28 @@ class NetlistModel:
                         if next_point_color[0] == next_point_color[2] and next_point_color[1] == 0 and next_point_color[0] >= component_color_start[0]:
                             # 遇到下一个元器件了
                             next_id = int(next_point_color[0] - component_color_start[0])
+
                             next_rect: EDARectangle = info[next_id]['points']
-                            next_direct = next_rect.direct(next_point)
+                            next_direct = EDAPoint.get_direction(next_point, current_point)
                             if (next_id, next_direct) not in record_component_id_direction:
-                                record_component_id_direction.append((next_id, next_direct))
+                                record_component_id_direction.append((next_id, next_direct, next_point))
                             # record_component_id_direction.append((next_id, next_direct))
-            pass
+
             for i in range(len(record_component_id_direction)):
                 for j in range(i + 1, len(record_component_id_direction)):
                     id_i = record_component_id_direction[i][0]
                     id_j = record_component_id_direction[j][0]
                     direct_i = record_component_id_direction[i][1]
                     direct_j = record_component_id_direction[j][1]
+                    point_i = record_component_id_direction[i][2]
+                    point_j = record_component_id_direction[j][2]
+
+                    # 做一点过滤
+                    if id_j == id_i:
+                        distance_threshold = max(self.nodes[id_i].rect.get_width(), self.nodes[id_i].rect.get_height()) + 1
+                        if point_i.euclidean_distance(point_j) <= distance_threshold:
+                            continue
+
                     if record_component_id_direction[i] != record_component_id_direction[j]:
                         self.nodes[id_i].add_next(direct_i, (direct_j, id_j))
                         self.nodes[id_j].add_next(direct_j, (direct_i, id_i))
@@ -316,7 +344,7 @@ class NetlistModel:
 
     def create_net(self, info: list[dict] = None, graph: np.ndarray = None, is_draw = False):
         node_length = len(self.nodes)
-
+        self.nets.append(NetNode(0))
         def draw(id, direction = None, net_id = None, id_or_net_id = False):
             if is_draw:
                 rec: EDARectangle = info[id]['points']
@@ -344,20 +372,36 @@ class NetlistModel:
             draw(my_id, id_or_net_id=True)
             if self.nodes[my_id].node_type == 'bridge':
                 continue
+
             my_directions = [EDANode.UP, EDANode.DOWN, EDANode.LEFT, EDANode.RIGHT]
+
+
             for my_direction in my_directions:
                 if len(self.nodes[my_id].next_node[my_direction]) == 0: # 如果这个方向没有连任何节点，则跳过
                     continue
-                self.nets.append(NetNode(len(self.nets)))
 
-                for next_direction, next_id in self.nodes[my_id].next_node[my_direction]:
-                    self.nodes[next_id].next_net[next_direction].append(len(self.nets) - 1)
-                    self.nodes[next_id].delete_next(next_direction, (my_direction, my_id))
-                    draw(next_id, next_direction, len(self.nets) - 1, False)
+                net_node = NetNode(len(self.nets))
 
-                self.nodes[my_id].next_net[my_direction].append(len(self.nets) - 1)
-                self.nodes[my_id].next_node[my_direction] = []
-                draw(my_id, my_direction, len(self.nets) - 1, False)
+                id_direction_set = set()
+                # 新建一个队列
+                q = Queue()
+                q.put((my_id, my_direction))
+                is_gnd = self.nodes[my_id].node_type == 'Gnd'
+                while not q.empty():
+                    cur_id, cur_direction = q.get()
+                    for next_direction, next_id in self.nodes[cur_id].next_node[cur_direction]:
+                        is_gnd = is_gnd or self.nodes[next_id].node_type == 'Gnd'
+                        if (next_id, next_direction) not in id_direction_set:
+                            id_direction_set.add((next_id, next_direction))
+                            q.put((next_id, next_direction))
+
+                set_net_id = 0 if is_gnd else net_node.id
+                # 把 id_direction_set 中的所有元素的网络都设置成 net_node
+                for the_id, the_direction in id_direction_set:
+                    self.nodes[the_id].next_net[the_direction].append(set_net_id)
+                    draw(the_id, the_direction, set_net_id, False)
+                    self.nodes[the_id].next_node[the_direction] = []
+                self.nets.append(net_node)
 
     def to_netlist(self):
         """
