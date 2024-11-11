@@ -69,7 +69,7 @@ class EDADataset:
     def get_item_path(self, index):  # 获取第index数据的路径
         return self.input_images[index]
 
-    def __getitem__(self, index) -> tuple[ndarray | Any, list, str]:  # return path
+    def __getitem__(self, index):  # return path
         graph = cv2.imread(self.input_images[index])
         return graph, self.info_list[index], self.input_images[index]
 
