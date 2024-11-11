@@ -15,20 +15,20 @@ classes = {
     '8': 'Siso_amp',
     '9': 'Dido_amp',
     '10': 'Cap',
-    '11': 'port', # 'Gnd,port,vdd',
+    '11': 'Gnd,port,vdd',
     '12': 'Ind',
     '13': 'Res',
-    '14': 'cross-line-curved',
+    '14': 'coss-line-curved',
     '15': 'switch',
     '16': 'switch-3',
     '17': 'antenna',
 }
 
 model = YOLO("best.pt")
-model = model.to('cpu')
+
 def predict(image_path):
     img = Image.open(image_path)
-    results = model.predict(source=img, conf=0.3, save=True, save_txt=True)
+    results = model.predict(source=img, save=True, save_txt=True)
     resultsDict = []
 
     for cpn in range(len(results[0].boxes.xyxy)):

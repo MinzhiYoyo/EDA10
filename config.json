@@ -16,7 +16,7 @@
     "Ind": ["inductor", "inductor-3"],
     "Res": ["resistor", "resistor2", "resistor2_3"],
     "port": ["port"],
-    "vdd": ["antenna", "vdd"],
+    "+5v": ["antenna", "vdd"],
     "bridge": ["cross-line-curved"],
     "cross": ["switch", "switch-3"]
   },
@@ -57,10 +57,6 @@
     "Vdd": ["port"],
     "Ind": ["Pos", "Neg"],
     "Res": ["Pos", "Neg"]
-  },
-  "label_to_port": {
-    "Cap": ["positive", "negative"],
-    "cross": ["switch", "switch-3"]
   },
   "colors": {
     "wire": [0,0,0],

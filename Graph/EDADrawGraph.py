@@ -16,7 +16,7 @@ from graphviz import Graph
 """
 
 # 画无向图
-def draw_graph(netlist: dict, file_name):
+def draw_graph(netlist: dict, number: int):
     netlist = netlist['ckt_netlist']
     dot = Graph(comment='The Round Table')
     counter = 0
@@ -31,6 +31,6 @@ def draw_graph(netlist: dict, file_name):
                 nets.add(net)
             dot.edge(component_type, net)
 
-    dot.render(f'tmp/route_{file_name}.gv', view=True)
+    dot.render(f'tmp/route_{number}.gv', view=True)
 
     return dot
