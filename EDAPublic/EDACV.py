@@ -58,6 +58,22 @@ class EDAPoint:
     def __hash__(self):
         return hash((self.x, self.y))
 
+    @staticmethod
+    def get_direction(current_point, next_point):
+        # 返回当前点到下一个点的方向
+        assert current_point != next_point, '两个点相同，无法获取方向'
+        if current_point.x == next_point.x:
+            if current_point.y < next_point.y:
+                return CV_DOWN
+            else:
+                return CV_UP
+        else:
+            if current_point.x < next_point.x:
+                return CV_RIGHT
+            else:
+                return CV_LEFT
+
+
 
 class EDARectangle:
     def __init__(self, left_up, right_down):
@@ -69,6 +85,12 @@ class EDARectangle:
 
     def __eq__(self, other):
         return self.left_up == other.left_up and self.right_down == other.right_down
+
+    def get_width(self):
+        return self.right_down.x - self.left_up.x
+
+    def get_height(self):
+        return self.right_down.y - self.left_up.y
 
     # 获取四个角的点
     def get_corners(self):

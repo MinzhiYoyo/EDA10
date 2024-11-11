@@ -12,11 +12,11 @@ def run_main(data_dir: str = './image.png'):
         os.makedirs(tmp_dir)
 
     dataset = EDADataset(data_dir, need_read_json=False)
-    netlist = NetlistModel()
 
     for run_index in range(len(dataset)):
         graph, info, file_path = dataset[run_index]
-        output_netlist = netlist.run(file_path, os.path.basename(file_path), graph, info, tmp_dir, is_draw=True, animal_interval = 50)
+        netlist = NetlistModel()
+        output_netlist = netlist.run(file_path, os.path.basename(file_path), graph, info, tmp_dir, is_draw=True, animal_interval = 0.02)
         print(output_netlist)
 
 
@@ -24,5 +24,5 @@ if __name__ == "__main__":
     if sys.argv.__len__() == 2:
         run_main(sys.argv[1])
     else:
-        run_main("./data/39.png")
+        run_main("./images/002.png")
 
