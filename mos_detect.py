@@ -67,20 +67,9 @@ def convert_row(row):
     return 1 if count_greater_equal >= 2 else 0
 
 def binarize_image(image_path, threshold=128):
-    if isinstance(image_path, str):
-        # 打开图像并转换为灰度
-        image = Image.open(image_path).convert('L')
-        # 将灰度图像转换为NumPy数组
-        image_array = np.array(image)
-        # 二值化处理
-    else:
-        image_array = image_path
-        # 先判断数组维数
-        if len(image_array.shape) == 3:
-            binary_array = np.apply_along_axis(convert_row, 2, image_array)
-            return binary_array
-    binary_array = (image_array > threshold).astype(int)
-    return binary_array
+    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE) if isinstance(image_path, str) else cv2.cvtColor(image_path, cv2.COLOR_BGR2GRAY)
+    _, binary_image = cv2.threshold(image, 200, 255, cv2.THRESH_BINARY)
+    return binary_image
 
 def calculate_column_ratios(binary_array):
     # 计算每列黑白像素的比例
