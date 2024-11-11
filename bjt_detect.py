@@ -28,10 +28,12 @@ def binarize_image(image_path):
         # 读取图像
         image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     else:
-        binary_image = image_path
-        if len(binary_image.shape) == 3:
-            binary_image = np.apply_along_axis(convert_row, 2, binary_image)
-            return binary_image
+        # 使用cv2的灰度化
+        image = cv2.cvtColor(image_path, cv2.COLOR_BGR2GRAY)
+
+        # if len(binary_image.shape) == 3:
+        #     binary_image = np.apply_along_axis(convert_row, 2, binary_image)
+        #     return binary_image
     # 二值化
     _, binary_image = cv2.threshold(image, 128, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
     return binary_image

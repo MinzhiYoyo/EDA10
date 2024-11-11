@@ -209,6 +209,8 @@ class NetlistModel:
                         elif direction == EDANode.RIGHT:
                             point.x = item_rectangle.right_down.x
                         cv2.putText(graph_poly, poly, (point.x, point.y), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 0, 255), 1)
+                        # 用红色线框出来
+                        cv2.polylines(graph_poly, [corners], True, (0, 0, 255), 1)
                         self.draw("draw_poly", graph_poly, is_draw=is_draw)
             self.nodes.append(new_node)
 
