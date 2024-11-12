@@ -230,6 +230,7 @@ def detect_mos(image_path):
     height, width = binary_array.shape
     center_column = width // 2
     center_row = height // 2
+    # Should not return None here
     distance_column = abs(second_peak_index_column - center_column)
     distance_row = abs(second_peak_index_row - center_row)
     # print(f'Distance to center (column): {distance_column}')
