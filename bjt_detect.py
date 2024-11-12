@@ -18,7 +18,7 @@ import sys
 from EDAPublic.EDACV import CV_UP, CV_DOWN, CV_LEFT, CV_RIGHT
 result = {'EC': None, 'Emitter': None, 'Collector': None, 'Base': None}
 image_path = ''
-
+binary_threshold = 175
 def bfs_remove_zi(image):
     # 传入的是 image，其中，0表示前景，255表示背景，我们需要移除部分前景
     point_set = set()
@@ -61,8 +61,16 @@ def convert_row(row):
 
 def binarize_image(image_path):
     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE) if isinstance(image_path, str) else cv2.cvtColor(image_path, cv2.COLOR_BGR2GRAY)
-    _, binary_image = cv2.threshold(image, 200, 255, cv2.THRESH_BINARY)
-    binary_image = bfs_remove_zi(binary_image)
+    _, binary_image = cv2.threshold(image, binary_threshold, 255, cv2.THRESH_BINARY)
+    # cv2.imshow('binary_image_bjt_mos', binary_image)
+    # 统计黑色占比，如果占比过小，就腐蚀
+    if np.sum(binary_image == 0) / binary_image.size < 0.25:
+        kernel = np.ones((5, 5), np.uint8)
+        binary_image = cv2.erode(binary_image, kernel, iterations=1)
+    # cv2.imshow('binary_image_bjt_mos', binary_image)
+        binary_image = bfs_remove_zi(binary_image)
+    # cv2.imshow('binary_image_bjt_mos', binary_image)
+    # cv2.waitKey(0)
     return binary_image
 
 def calculate_symmetry(binary_image):

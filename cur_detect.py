@@ -8,18 +8,18 @@ from bjt_detect import bfs_remove_zi
 
 result = {'IO': None, 'In': None, 'Out': None}
 image_path = ''
-
+from bjt_detect import binarize_image
 # 降维
 def convert_row(row):
     count_greater_equal = np.sum(row >= 128)
     # 返回 0 或 1
     return 1 if count_greater_equal >= 2 else 0
 
-def binarize_image(image_path):
-    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE) if isinstance(image_path, str) else cv2.cvtColor(image_path, cv2.COLOR_BGR2GRAY)
-    _, binary_image = cv2.threshold(image, 200, 255, cv2.THRESH_BINARY)
-    binary_image = bfs_remove_zi(binary_image)
-    return binary_image
+# def binarize_image(image_path):
+#     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE) if isinstance(image_path, str) else cv2.cvtColor(image_path, cv2.COLOR_BGR2GRAY)
+#     _, binary_image = cv2.threshold(image, 200, 255, cv2.THRESH_BINARY)
+#     binary_image = bfs_remove_zi(binary_image)
+#     return binary_image
 
 def calculate_symmetry(binary_image):
     h, w = binary_image.shape

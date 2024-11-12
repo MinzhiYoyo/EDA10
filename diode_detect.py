@@ -8,7 +8,7 @@ from EDAPublic.EDACV import CV_UP, CV_DOWN, CV_LEFT, CV_RIGHT
 
 result = {'IO': None, 'In': None, 'Out': None}
 image_path = ''
-
+from bjt_detect import binarize_image
 def annotate_image(image_path, save_path, annotations):
     # 打开图像
     image = Image.open(image_path)
@@ -55,10 +55,10 @@ def convert_row(row):
     # 返回 0 或 1
     return 1 if count_greater_equal >= 2 else 0
 
-def binarize_image(image_path, threshold=128):
-    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE) if isinstance(image_path, str) else cv2.cvtColor(image_path, cv2.COLOR_BGR2GRAY)
-    _, binary_image = cv2.threshold(image, 200, 255, cv2.THRESH_BINARY)
-    return binary_image
+# def binarize_image(image_path, threshold=128):
+#     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE) if isinstance(image_path, str) else cv2.cvtColor(image_path, cv2.COLOR_BGR2GRAY)
+#     _, binary_image = cv2.threshold(image, 200, 255, cv2.THRESH_BINARY)
+#     return binary_image
 
 def calculate_column_ratios(binary_array):
     # 计算每列黑白像素的比例

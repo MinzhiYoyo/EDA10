@@ -17,7 +17,7 @@ import sys
 import cv2
 
 from EDAPublic.EDACV import CV_RIGHT, CV_LEFT, CV_UP, CV_DOWN
-from bjt_detect import bfs_remove_zi
+from bjt_detect import binarize_image
 
 result = {'DS': None, 'Source': None, 'Drain': None, 'Gate': None, 'Body': None}
 image_path = ''
@@ -67,11 +67,11 @@ def convert_row(row):
     # 返回 0 或 1
     return 1 if count_greater_equal >= 2 else 0
 
-def binarize_image(image_path, threshold=128):
-    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE) if isinstance(image_path, str) else cv2.cvtColor(image_path, cv2.COLOR_BGR2GRAY)
-    _, binary_image = cv2.threshold(image, 200, 255, cv2.THRESH_BINARY)
-    binary_image = bfs_remove_zi(binary_image)
-    return binary_image
+# def binarize_image(image_path):
+#     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE) if isinstance(image_path, str) else cv2.cvtColor(image_path, cv2.COLOR_BGR2GRAY)
+#     _, binary_image = cv2.threshold(image, binary_threshold, 255, cv2.THRESH_BINARY)
+#     binary_image = bfs_remove_zi(binary_image)
+#     return binary_image
 
 def calculate_column_ratios(binary_array):
     # 计算每列黑白像素的比例
@@ -194,8 +194,8 @@ def plot_ratios(image_path, save_path, column_black_ratios, column_white_ratios,
     plt.legend()
 
     plt.tight_layout()
-    # plt.show()
-    # plt.savefig(save_path)
+    plt.show()
+    plt.savefig(save_path)
 
 def detect_mos(image_path):
     binary_array = binarize_image(image_path)
@@ -211,7 +211,7 @@ def detect_mos(image_path):
     second_peak_index_column, relative_position_column = find_second_peak(column_peaks, column_black_ratios)
     second_peak_index_row, relative_position_row = find_second_peak(row_peaks, row_black_ratios)
 
-    # save_path = image_path.replace('.png', '_histogram.png')  # 保存图片的路径
+    # save_path = "./tmp/hist.png"  # 保存图片的路径
     # plot_ratios(image_path, save_path, column_black_ratios, column_white_ratios, row_black_ratios, row_white_ratios, column_peaks, row_peaks)
     
     ''' 打印一些峰值识别信息

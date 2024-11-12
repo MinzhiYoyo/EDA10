@@ -1,4 +1,6 @@
 import json
+import pickle
+
 from PIL import Image
 from logging import warning
 from queue import Queue
@@ -11,10 +13,11 @@ from Graph.EDADrawGraph import draw_graph
 from Graph.EDANode import *
 from EDAPublic.EDACV import EDARectangle, EDAPoint
 from mos_detect import detect_mos
-from bjt_detect import detect_bjt
+from bjt_detect import detect_bjt, binary_threshold
 from cur_detect import detect_cur
 from diode_detect import detect_diode
 
+classify_er_model = pickle.load(open('./predict_function.pkl', 'rb'))
 
 class NetlistModel:
     def __init__(self):
@@ -114,7 +117,7 @@ class NetlistModel:
         gray = cv2.cvtColor(graph, cv2.COLOR_BGR2GRAY)
         self.draw(f'gray_{png_file_name}', gray, is_draw)
         self.save_tmp(f'gray_{png_file_name}', gray, tmp_dir, is_draw)
-        _, binary = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)
+        _, binary = cv2.threshold(gray, binary_threshold, 255, cv2.THRESH_BINARY)
         self.draw(f'binary_{png_file_name}', binary, is_draw)
         self.save_tmp(f'binary_{png_file_name}', binary, tmp_dir, is_draw)
         # 腐蚀
@@ -185,83 +188,85 @@ class NetlistModel:
 
             if item_label != 'bridge':
                 self.draw_component(i, graph, item_rectangle, is_draw)  # 填充元器件颜色
-
-            if 'MOS' in item_label:
-                # 调用MOS端口识别
-                # self.crop_image(png_file_path, f'{tmp_dir}/tmp_mos.png', corners[0][0], corners[0][1], corners[2][0], corners[2][1])
-                crop_image = self.crop_image_from_source(source_graph, corners[0][0], corners[0][1], corners[2][0], corners[2][1])
-                mos_ports = detect_mos(crop_image)
-                if mos_ports['Gate'] is not None: # 识别成功
-                    new_node.set_direct_to_poly(mos_ports['Source'], 'Source')
-                    new_node.set_direct_to_poly(mos_ports['Gate'], 'Gate')
-                    new_node.set_direct_to_poly(mos_ports['Drain'], 'Drain')
-                elif mos_ports['DS'] == 'Vertical': # Drain 和 Source 是上下方向，但 Gate 没识别出来
-                    new_node.set_direct_to_poly(EDANode.UP, 'Source')
-                    new_node.set_direct_to_poly(EDANode.LEFT, 'Gate') # 随便猜一个方向
-                    new_node.set_direct_to_poly(EDANode.DOWN, 'Drain')
-                else: # Drain 和 Source 是左右方向，但 Gate 没识别出来，或者全部识别失败
-                    new_node.set_direct_to_poly(EDANode.LEFT, 'Source')
-                    new_node.set_direct_to_poly(EDANode.UP, 'Gate') # 随便猜一个方向
-                    new_node.set_direct_to_poly(EDANode.RIGHT, 'Drain')
-            elif 'NPN' in item_label or 'PNP' in item_label:
-                # 调用BJT端口识别
-                # self.crop_image(png_file_path, f'{tmp_dir}/tmp_bjt.png', corners[0][0], corners[0][1], corners[2][0], corners[2][1])
-                crop_image = self.crop_image_from_source(source_graph, corners[0][0], corners[0][1], corners[2][0], corners[2][1])
-                bjt_ports = detect_bjt(crop_image)
-                if bjt_ports['Base'] is not None: # 识别成功
-                    new_node.set_direct_to_poly(bjt_ports['Base'], 'Base')
-                    new_node.set_direct_to_poly(bjt_ports['Emitter'], 'Emitter')
-                    new_node.set_direct_to_poly(bjt_ports['Collector'], 'Collector')
-                elif bjt_ports['EC'] == 'Vertical': # Emitter 和 Collector 是上下方向，但 Base 没识别出来
-                    new_node.set_direct_to_poly(EDANode.UP, 'Base')
-                    new_node.set_direct_to_poly(EDANode.LEFT, 'Emitter') # 随便猜一个方向
-                    new_node.set_direct_to_poly(EDANode.DOWN, 'Collector')
-                else: # Emitter 和 Collector 是左右方向，但 Base 没识别出来，或者全部识别失败
-                    new_node.set_direct_to_poly(EDANode.LEFT, 'Base')
-                    new_node.set_direct_to_poly(EDANode.UP, 'Emitter') # 随便猜一个方向
-                    new_node.set_direct_to_poly(EDANode.RIGHT, 'Collector')
-            elif 'Cur' in item_label:
-                # 调用电流源端口识别
-                crop_image = self.crop_image_from_source(source_graph, corners[0][0], corners[0][1], corners[2][0], corners[2][1])
-                cur_ports = detect_cur(crop_image)
-                if cur_ports['In'] is not None: # 识别成功
-                    new_node.set_direct_to_poly(cur_ports['In'], 'In')
-                    new_node.set_direct_to_poly(cur_ports['Out'], 'Out')
-                elif cur_ports['IO'] == 'Horizontal':
-                    new_node.set_direct_to_poly(EDANode.LEFT, 'In')
-                    new_node.set_direct_to_poly(EDANode.RIGHT, 'Out')
-                else:
-                    new_node.set_direct_to_poly(EDANode.UP, 'In')
-                    new_node.set_direct_to_poly(EDANode.DOWN, 'Out')
-            elif 'Diode' in item_label:
-                # 调用二极管端口识别
-                crop_image = self.crop_image_from_source(source_graph, corners[0][0], corners[0][1], corners[2][0], corners[2][1])
-                diode_ports = detect_diode(crop_image)
-                if diode_ports['In'] is not None: # 识别成功
-                    new_node.set_direct_to_poly(diode_ports['In'], 'In')
-                    new_node.set_direct_to_poly(diode_ports['Out'], 'Out')
-                elif diode_ports['IO'] == 'Horizontal':
-                    new_node.set_direct_to_poly(EDANode.LEFT, 'In')
-                    new_node.set_direct_to_poly(EDANode.RIGHT, 'Out')
-                else:
-                    new_node.set_direct_to_poly(EDANode.UP, 'In')
-                    new_node.set_direct_to_poly(EDANode.DOWN, 'Out')
-            if is_draw:
-                for direction, poly in new_node.direct_to_poly.items():
-                    if poly is not None:
-                        point = item_rectangle.center()
-                        if direction == EDANode.UP:
-                            point.y = item_rectangle.left_up.y
-                        elif direction == EDANode.DOWN:
-                            point.y = item_rectangle.right_down.y
-                        elif direction == EDANode.LEFT:
-                            point.x = item_rectangle.left_up.x
-                        elif direction == EDANode.RIGHT:
-                            point.x = item_rectangle.right_down.x
-                        cv2.putText(graph_poly, poly, (point.x, point.y), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 0, 255), 1)
-                        # 用红色线框出来
-                        cv2.polylines(graph_poly, [corners], True, (0, 0, 255), 1)
-                        self.draw("draw_poly", graph_poly, is_draw=is_draw)
+            try:
+                if 'MOS' in item_label:
+                    # 调用MOS端口识别
+                    # self.crop_image(png_file_path, f'{tmp_dir}/tmp_mos.png', corners[0][0], corners[0][1], corners[2][0], corners[2][1])
+                    crop_image = self.crop_image_from_source(source_graph, corners[0][0], corners[0][1], corners[2][0], corners[2][1])
+                    mos_ports = detect_mos(crop_image)
+                    if mos_ports['Gate'] is not None: # 识别成功
+                        new_node.set_direct_to_poly(mos_ports['Source'], 'Source')
+                        new_node.set_direct_to_poly(mos_ports['Gate'], 'Gate')
+                        new_node.set_direct_to_poly(mos_ports['Drain'], 'Drain')
+                    elif mos_ports['DS'] == 'Vertical': # Drain 和 Source 是上下方向，但 Gate 没识别出来
+                        new_node.set_direct_to_poly(EDANode.UP, 'Source')
+                        new_node.set_direct_to_poly(EDANode.LEFT, 'Gate') # 随便猜一个方向
+                        new_node.set_direct_to_poly(EDANode.DOWN, 'Drain')
+                    else: # Drain 和 Source 是左右方向，但 Gate 没识别出来，或者全部识别失败
+                        new_node.set_direct_to_poly(EDANode.LEFT, 'Source')
+                        new_node.set_direct_to_poly(EDANode.UP, 'Gate') # 随便猜一个方向
+                        new_node.set_direct_to_poly(EDANode.RIGHT, 'Drain')
+                elif 'NPN' in item_label or 'PNP' in item_label:
+                    # 调用BJT端口识别
+                    # self.crop_image(png_file_path, f'{tmp_dir}/tmp_bjt.png', corners[0][0], corners[0][1], corners[2][0], corners[2][1])
+                    crop_image = self.crop_image_from_source(source_graph, corners[0][0], corners[0][1], corners[2][0], corners[2][1])
+                    bjt_ports = detect_bjt(crop_image)
+                    if bjt_ports['Base'] is not None: # 识别成功
+                        new_node.set_direct_to_poly(bjt_ports['Base'], 'Base')
+                        new_node.set_direct_to_poly(bjt_ports['Emitter'], 'Emitter')
+                        new_node.set_direct_to_poly(bjt_ports['Collector'], 'Collector')
+                    elif bjt_ports['EC'] == 'Vertical': # Emitter 和 Collector 是上下方向，但 Base 没识别出来
+                        new_node.set_direct_to_poly(EDANode.UP, 'Base')
+                        new_node.set_direct_to_poly(EDANode.LEFT, 'Emitter') # 随便猜一个方向
+                        new_node.set_direct_to_poly(EDANode.DOWN, 'Collector')
+                    else: # Emitter 和 Collector 是左右方向，但 Base 没识别出来，或者全部识别失败
+                        new_node.set_direct_to_poly(EDANode.LEFT, 'Base')
+                        new_node.set_direct_to_poly(EDANode.UP, 'Emitter') # 随便猜一个方向
+                        new_node.set_direct_to_poly(EDANode.RIGHT, 'Collector')
+                elif 'Cur' in item_label:
+                    # 调用电流源端口识别
+                    crop_image = self.crop_image_from_source(source_graph, corners[0][0], corners[0][1], corners[2][0], corners[2][1])
+                    cur_ports = detect_cur(crop_image)
+                    if cur_ports['In'] is not None: # 识别成功
+                        new_node.set_direct_to_poly(cur_ports['In'], 'In')
+                        new_node.set_direct_to_poly(cur_ports['Out'], 'Out')
+                    elif cur_ports['IO'] == 'Horizontal':
+                        new_node.set_direct_to_poly(EDANode.LEFT, 'In')
+                        new_node.set_direct_to_poly(EDANode.RIGHT, 'Out')
+                    else:
+                        new_node.set_direct_to_poly(EDANode.UP, 'In')
+                        new_node.set_direct_to_poly(EDANode.DOWN, 'Out')
+                elif 'Diode' in item_label:
+                    # 调用二极管端口识别
+                    crop_image = self.crop_image_from_source(source_graph, corners[0][0], corners[0][1], corners[2][0], corners[2][1])
+                    diode_ports = detect_diode(crop_image)
+                    if diode_ports['In'] is not None: # 识别成功
+                        new_node.set_direct_to_poly(diode_ports['In'], 'In')
+                        new_node.set_direct_to_poly(diode_ports['Out'], 'Out')
+                    elif diode_ports['IO'] == 'Horizontal':
+                        new_node.set_direct_to_poly(EDANode.LEFT, 'In')
+                        new_node.set_direct_to_poly(EDANode.RIGHT, 'Out')
+                    else:
+                        new_node.set_direct_to_poly(EDANode.UP, 'In')
+                        new_node.set_direct_to_poly(EDANode.DOWN, 'Out')
+                if is_draw:
+                    for direction, poly in new_node.direct_to_poly.items():
+                        if poly is not None:
+                            point = item_rectangle.center()
+                            if direction == EDANode.UP:
+                                point.y = item_rectangle.left_up.y
+                            elif direction == EDANode.DOWN:
+                                point.y = item_rectangle.right_down.y
+                            elif direction == EDANode.LEFT:
+                                point.x = item_rectangle.left_up.x
+                            elif direction == EDANode.RIGHT:
+                                point.x = item_rectangle.right_down.x
+                            cv2.putText(graph_poly, poly, (point.x, point.y), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 0, 255), 1)
+                            # 用红色线框出来
+                            cv2.polylines(graph_poly, [corners], True, (0, 0, 255), 1)
+                            self.draw("draw_poly", graph_poly, is_draw=is_draw)
+            except Exception as e:
+                pass
             self.nodes.append(new_node)
 
         # 遍历所有图像，识别wire
@@ -283,6 +288,7 @@ class NetlistModel:
 
         # 生成网表
         netlist = self.to_netlist(graph_netlist, is_draw) # 生成 netlist
+        netlist = self.predict_function(netlist) # 预测功能
         # 以人能够阅读的方式写入 json 文件，路径为 {tmp_dir}/test.json
         with open(f'{tmp_dir}/{png_file_name.split(".")[0]}.json', 'w', encoding='utf8') as f:
             json.dump(netlist, f, ensure_ascii=False, indent=4)
@@ -503,4 +509,18 @@ class NetlistModel:
 
             result["ckt_netlist"].append(component)
         return result
+
+    def predict_function(self, netlist):
+        ckt_type_numer: list = self.config['ckt_type']
+        components_number: list = self.config['netlist_components']
+        a_x = [0] * len(components_number)
+        for component in netlist['ckt_netlist']:
+            component_index = components_number.index(component['component_type'])
+            a_x[component_index] += 1
+        x = np.array(a_x)
+        y = classify_er_model.predict([x])
+        netlist['ckt_type'] = ckt_type_numer[y[0]]
+        return netlist
+
+
 

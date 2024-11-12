@@ -16,7 +16,7 @@ def run_main(data_dir: str = './image.png'):
     for run_index in range(len(dataset)):
         graph, info, file_path = dataset[run_index]
         netlist = NetlistModel()
-        output_netlist = netlist.run(file_path, os.path.basename(file_path), graph, info, tmp_dir, is_draw=True, animal_interval = 0.02)
+        output_netlist = netlist.run(file_path, os.path.basename(file_path), graph, info, tmp_dir, is_draw=False, animal_interval = 0.02)
         print(output_netlist)
 
 
@@ -24,5 +24,5 @@ if __name__ == "__main__":
     if sys.argv.__len__() == 2:
         run_main(sys.argv[1])
     else:
-        run_main("./images/051.png")
+        run_main("./images/002.png")
 
