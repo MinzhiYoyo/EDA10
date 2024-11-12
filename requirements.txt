@@ -1,8 +1,7 @@
-numpy
-opencv-python
-sympy
-pillow
-matplotlib
-graphviz
-ultralytics
-scipy
+numpy~=2.1.2
+opencv-python~=4.10.0.84
+pillow~=10.2.0
+matplotlib~=3.9.2
+graphviz~=0.20.3
+ultralytics~=8.3.25
+scipy~=1.14.1

@@ -17,6 +17,7 @@ import sys
 import cv2
 
 from EDAPublic.EDACV import CV_RIGHT, CV_LEFT, CV_UP, CV_DOWN
+from bjt_detect import bfs_remove_zi
 
 result = {'DS': None, 'Source': None, 'Drain': None, 'Gate': None, 'Body': None}
 image_path = ''
@@ -69,6 +70,7 @@ def convert_row(row):
 def binarize_image(image_path, threshold=128):
     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE) if isinstance(image_path, str) else cv2.cvtColor(image_path, cv2.COLOR_BGR2GRAY)
     _, binary_image = cv2.threshold(image, 200, 255, cv2.THRESH_BINARY)
+    binary_image = bfs_remove_zi(binary_image)
     return binary_image
 
 def calculate_column_ratios(binary_array):

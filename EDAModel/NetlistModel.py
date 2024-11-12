@@ -163,30 +163,26 @@ class NetlistModel:
 
         # animal_interval = 20 # 每寻多少个点就画一次
         graph_poly = None
+        graph_netlist = None
         if is_draw:
             graph_poly = source_graph.copy()
-
-        for i, item in enumerate(info):
-            item_rectangle: EDARectangle = item['points']
-            item_label = item['label']
-            if item_label != 'bridge':
-                continue
-
-            corners = item_rectangle.get_corners()
-            corners = np.array([corner.to_numpy() for corner in corners])
-            new_node = EDANode(node_type=self.label_to_type(item_label), id=i, rect = item_rectangle)
-            self.draw_component(i, graph, item_rectangle, is_draw)  # 填充元器件颜色
-            self.nodes.append(new_node)
+            graph_netlist = source_graph.copy()
 
         for i, item in enumerate(info):
             item_rectangle: EDARectangle = item['points']
             item_label = item['label']
             if item_label == 'bridge':
-                continue
+                self.draw_component(i, graph, item_rectangle, is_draw)  # 填充元器件颜色
+
+        for i, item in enumerate(info):
+            item_rectangle: EDARectangle = item['points']
+            item_label = item['label']
             corners = item_rectangle.get_corners()
             corners = np.array([corner.to_numpy() for corner in corners])
-            new_node = EDANode(node_type=self.label_to_type(item_label), id=i, rect = item_rectangle)
-            self.draw_component(i, graph, item_rectangle, is_draw)  # 填充元器件颜色
+            new_node = EDANode(node_type=self.label_to_type(item_label), id=len(self.nodes), rect = item_rectangle)
+
+            if item_label != 'bridge':
+                self.draw_component(i, graph, item_rectangle, is_draw)  # 填充元器件颜色
 
             if 'MOS' in item_label:
                 # 调用MOS端口识别
@@ -258,7 +254,7 @@ class NetlistModel:
         self.create_net(info, graph, is_draw) # 创建网络
 
         # 生成网表
-        netlist = self.to_netlist() # 生成 netlist
+        netlist = self.to_netlist(graph_netlist, is_draw) # 生成 netlist
         # 以人能够阅读的方式写入 json 文件，路径为 {tmp_dir}/test.json
         with open(f'{tmp_dir}/{png_file_name.split(".")[0]}.json', 'w', encoding='utf8') as f:
             json.dump(netlist, f, ensure_ascii=False, indent=4)
@@ -329,9 +325,10 @@ class NetlistModel:
 
                     # 做一点过滤
                     if id_j == id_i:
-                        distance_threshold = max(self.nodes[id_i].rect.get_width(), self.nodes[id_i].rect.get_height()) + 1
-                        if point_i.euclidean_distance(point_j) <= distance_threshold:
-                            continue
+                        continue
+                        # distance_threshold = self.nodes[id_i].rect.get_width() + self.nodes[id_i].rect.get_height() + 1
+                        # if point_i.euclidean_distance(point_j) <= distance_threshold:
+                        #     continue
 
                     if record_component_id_direction[i] != record_component_id_direction[j]:
                         self.nodes[id_i].add_next(direct_i, (direct_j, id_j))
@@ -417,7 +414,7 @@ class NetlistModel:
                     self.nodes[the_id].next_node[the_direction] = []
                 self.nets.append(net_node)
 
-    def to_netlist(self):
+    def to_netlist(self, graph: np.ndarray, is_draw):
         """
         {
             "ckt_type": "Unkown", # 电路类型预测
@@ -437,6 +434,8 @@ class NetlistModel:
             "ckt_type": random.choice(self.config['ckt_type']),
             "ckt_netlist": []
         }
+        random_poly = self.config['label_random_poly']
+        random_poly_name = self.config['random_poly_name']
         for node_id in range(len(self.nodes)):
             if self.nodes[node_id].node_type not in self.netlist_components:
                 continue
@@ -444,18 +443,36 @@ class NetlistModel:
                 "component_type": self.nodes[node_id].node_type,
                 "port_connection": {}
             }
-            # if(self.nodes[node_id].node_type in self.config['label_dual_port']): # 处理双端口元件被识别错端口数量的潜在问题
-            #     self.nodes[node_id].process_directions()
-            ports = []
-            for direction in [EDANode.UP, EDANode.DOWN, EDANode.LEFT, EDANode.RIGHT]:
-                # dir_to_ports = [p for p, n in self.nodes[node_id].next_net.items() if n is not None and len(n) > 0]
-                # self.nodes[node_id].set_direct_to_poly(dir_to_ports, self.config['label_netlist_port'][self.nodes[node_id].node_type])
-                port_name, next_net_id = self.nodes[node_id].get_port_name(direction)
-                if port_name is None or next_net_id is None or port_name in [EDANode.UP, EDANode.DOWN, EDANode.LEFT, EDANode.RIGHT]:
-                    continue
-                component["port_connection"][port_name] = str(self.nets[next_net_id])
-                if port_name == 'Source':
-                    component["port_connection"]["Body"] = str(self.nets[next_net_id])
+
+            # 提取当前节点的连接信息
+            # 分为两种，1. 需要随机生成极的，2. 需要确定极的
+            # 1. 随机生成极的，那么就需要随机生成一个极
+            # 2. 确定极的，如果有极，那么就正常输出，没有极，就不输出极，只输出节点即可
+            if self.nodes[node_id].node_type in random_poly:
+                self.nodes[node_id].random_poly(*random_poly_name)
+
+            # 获取节点的连接信息
+            connection_info_list = self.nodes[node_id].get_connection_info()
+            for direction, poly, net_id in connection_info_list:
+                component["port_connection"][poly] = str(self.nets[net_id])
+                if is_draw:
+                    info_text = f"{poly[:2]} {net_id:2d}"
+                    center = self.nodes[node_id].rect.center()
+                    if direction == EDANode.UP:
+                        center.y = self.nodes[node_id].rect.left_up.y + 5
+                    elif direction == EDANode.DOWN:
+                        center.y = self.nodes[node_id].rect.right_down.y - 5
+                    elif direction == EDANode.LEFT:
+                        center.x = self.nodes[node_id].rect.left_up.x + 5
+                    elif direction == EDANode.RIGHT:
+                        center.x = self.nodes[node_id].rect.right_down.x - 5
+                    # 画框
+                    corners = self.nodes[node_id].rect.get_corners()
+                    corners = np.array([corner.to_numpy() for corner in corners])
+                    cv2.polylines(graph, [corners], True, (255, 0, 0), 1)
+                    cv2.putText(graph, info_text, (center.x, center.y), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
+                    self.draw("to_netlist", graph, is_draw=is_draw)
+
             result["ckt_netlist"].append(component)
         return result
 

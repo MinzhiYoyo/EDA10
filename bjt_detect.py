@@ -7,15 +7,51 @@
 #       Base：基极的位置（Left/Right/Up/Down）
 # 调用方法：python bjt_detect.py <image_path>
 ##########################################################
+import queue
 
 from PIL import Image, ImageDraw, ImageFont
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
+
 from EDAPublic.EDACV import CV_UP, CV_DOWN, CV_LEFT, CV_RIGHT
 result = {'EC': None, 'Emitter': None, 'Collector': None, 'Base': None}
 image_path = ''
+
+def bfs_remove_zi(image):
+    # 传入的是 image，其中，0表示前景，255表示背景，我们需要移除部分前景
+    point_set = set()
+    h, w = image.shape
+    for i in range(h):
+        for j in range(w):
+            if image[i][j] == 0:
+                point_set.add((i, j))
+    # 随机选择一个点
+    while len(point_set) > 0:
+        start = point_set.pop()
+        # 新建队列
+        q = queue.Queue()
+        q.put(start)
+        record_to_edge = 0
+        record_remove_point = set()
+        record_remove_point.add(start)
+        while not q.empty():
+            cur = q.get()
+            nex = [(cur[0] - 1, cur[1]), (cur[0] + 1, cur[1]), (cur[0], cur[1] - 1), (cur[0], cur[1] + 1)]
+            for n in nex:
+                if n in point_set:
+                    q.put(n)
+                    point_set.remove(n)
+                    record_remove_point.add(n)
+                elif n[0] < 0 or n[0] >= h or n[1] < 0 or n[1] >= w:
+                    record_to_edge += 1
+        if record_to_edge < 2:
+            for p in record_remove_point:
+                image[p[0]][p[1]] = 255
+    return image
+
+
 
 # 降维
 def convert_row(row):
@@ -26,6 +62,7 @@ def convert_row(row):
 def binarize_image(image_path):
     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE) if isinstance(image_path, str) else cv2.cvtColor(image_path, cv2.COLOR_BGR2GRAY)
     _, binary_image = cv2.threshold(image, 200, 255, cv2.THRESH_BINARY)
+    binary_image = bfs_remove_zi(binary_image)
     return binary_image
 
 def calculate_symmetry(binary_image):

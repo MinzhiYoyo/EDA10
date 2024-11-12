@@ -24,5 +24,5 @@ if __name__ == "__main__":
     if sys.argv.__len__() == 2:
         run_main(sys.argv[1])
     else:
-        run_main("./images/002.png")
+        run_main("./images/034.png")
 
