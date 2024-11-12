@@ -12,6 +12,7 @@ from Graph.EDANode import *
 from EDAPublic.EDACV import EDARectangle, EDAPoint
 from mos_detect import detect_mos
 from bjt_detect import detect_bjt
+from cur_detect import detect_cur
 
 
 class NetlistModel:
@@ -218,6 +219,19 @@ class NetlistModel:
                     new_node.set_direct_to_poly(EDANode.LEFT, 'Base')
                     new_node.set_direct_to_poly(EDANode.UP, 'Emitter') # 随便猜一个方向
                     new_node.set_direct_to_poly(EDANode.RIGHT, 'Collector')
+            elif 'Cur' in item_label:
+                # 调用电流源端口识别
+                crop_image = self.crop_image_from_source(source_graph, corners[0][0], corners[0][1], corners[2][0], corners[2][1])
+                cur_ports = detect_cur(crop_image)
+                if cur_ports['In'] is not None: # 识别成功
+                    new_node.set_direct_to_poly(cur_ports['In'], 'In')
+                    new_node.set_direct_to_poly(cur_ports['Out'], 'Out')
+                elif cur_ports['IO'] == 'Horizontal':
+                    new_node.set_direct_to_poly(EDANode.LEFT, 'In')
+                    new_node.set_direct_to_poly(EDANode.RIGHT, 'Out')
+                else:
+                    new_node.set_direct_to_poly(EDANode.UP, 'In')
+                    new_node.set_direct_to_poly(EDANode.DOWN, 'Out')
             if is_draw:
                 for direction, poly in new_node.direct_to_poly.items():
                     if poly is not None:
