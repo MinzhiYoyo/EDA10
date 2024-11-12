@@ -371,7 +371,8 @@ class NetlistModel:
         node = self.nodes[node_id]
         for next_direction, next_id in node.next_node[dir1]:
             # 删除self.nodes[next_id].next_node[next_direction]中的(node_id, dir1)
-            self.nodes[next_id].next_node[next_direction].remove((dir1, node_id))
+            # self.nodes[next_id].next_node[next_direction].remove((dir1, node_id))
+            self.nodes[next_id].delete_next(next_direction, (dir1, node_id))
             # 添加 node.next_node[dir2]中的所有元素到 self.nodes[next_id].next_node[next_direction]中
             for next_next_direction, next_next_id in node.next_node[dir2]:
                 self.nodes[next_id].add_next(next_direction, (next_next_direction, next_next_id))
