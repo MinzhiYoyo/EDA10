@@ -17,10 +17,12 @@
     "Res": ["resistor", "resistor2", "resistor2_3"],
     "port": ["port"],
     "vdd": ["antenna", "vdd"],
-    "bridge": ["cross-line-curved"],
+    "bridge": ["cross-line-curved", "cross"],
     "cross": ["switch", "switch-3"]
   },
   "netlist_components": ["PMOS", "NMOS", "Voltage", "Current", "NPN", "PNP", "Diode", "Diso_amp", "Siso_amp", "Dido_amp", "Cap", "Ind", "Res"],
+  "label_random_poly": ["Cap", "Ind", "Res"],
+  "random_poly_name": ["Pos", "Neg"],
   "label_netlist_port": {
     "PMOS": ["Drain", "Source", "Gate", "Body"],
     "NMOS": ["Drain", "Source", "Gate", "Body"],

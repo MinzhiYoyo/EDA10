@@ -1,6 +1,5 @@
 import random
-
-from EDAPublic.EDACV import CV_UP, CV_DOWN, CV_LEFT, CV_RIGHT
+from EDAPublic.EDACV import CV_UP, CV_DOWN, CV_LEFT, CV_RIGHT, EDARectangle
 
 
 # 颜色标志：导线是绿色的，走过的导线是浅绿色
@@ -13,6 +12,21 @@ class EDANode:
     LEFT = CV_LEFT # "Left"
     RIGHT = CV_RIGHT # "Right"
     # TOTAL = "Total"
+
+    # 获取相对方向
+    @staticmethod
+    def opposite_direction(direction):
+        if direction == EDANode.UP:
+            return EDANode.DOWN
+        elif direction == EDANode.DOWN:
+            return EDANode.UP
+        elif direction == EDANode.LEFT:
+            return EDANode.RIGHT
+        elif direction == EDANode.RIGHT:
+            return EDANode.LEFT
+        else:
+            raise ValueError(f"Invalid direction `{direction}`")
+
     def __init__(self, node_type: str, id: int, rect):
         self.name = node_type + str(id)
         self.id = id
@@ -40,24 +54,20 @@ class EDANode:
             EDANode.RIGHT: None,
         }
 
-    def get_port_name(self, direction: str):
+    def get_net_of_direction(self, direction: str):
         assert direction in [EDANode.UP, EDANode.DOWN, EDANode.LEFT, EDANode.RIGHT], f"Invalid direction `{direction}`, must be in [{EDANode.UP}, {EDANode.DOWN}, {EDANode.LEFT}, {EDANode.RIGHT}]"
-        if self.next_net[direction] is None or len(self.next_net[direction]) == 0: # 这个方向上没有连接
+
+        if self.next_net[direction] is None or len(self.next_net[direction]) == 0 or self.direct_to_poly[direction] is None:
             return None, None
-        # 随机选择 self.next_net[direction] 中的一个
+
         random_next_net = self.next_net[direction][random.randint(0, len(self.next_net[direction]) - 1)]
-        return direction if self.direct_to_poly[direction] is None else self.direct_to_poly[direction], random_next_net
+        return self.direct_to_poly[direction], random_next_net
 
     # 设置上下左右分别是什么
     def set_direct_to_poly(self, direction, poly):
-        if isinstance(direction, list):
-            for d, p in zip(direction, poly):
-                assert d in [EDANode.UP, EDANode.DOWN, EDANode.LEFT, EDANode.RIGHT], f"Invalid direction `{direction}`, must be in [{EDANode.UP}, {EDANode.DOWN}, {EDANode.LEFT}, {EDANode.RIGHT}]"
-                self.direct_to_poly[d] = p
-        elif isinstance(poly, str):
-            self.direct_to_poly[direction] = poly
-        else:
-            raise ValueError(f"Invalid input {direction}, {poly}")
+        assert direction in [EDANode.UP, EDANode.DOWN, EDANode.LEFT, EDANode.RIGHT], f"Invalid direction `{direction}`, must be in [{EDANode.UP}, {EDANode.DOWN}, {EDANode.LEFT}, {EDANode.RIGHT}]"
+        assert isinstance(poly, str), f"Invalid poly `{poly}`, must be str, but is {type(poly)}"
+        self.direct_to_poly[direction] = poly
         
     def process_directions(self):
         '''
@@ -164,6 +174,52 @@ class EDANode:
 
     def __str__(self):
         return f"{self.node_type}_{self.id}"
+
+    def random_poly(self, *poly_names):
+        assert len(poly_names) == 2, f"Invalid number of poly names, must be 2, but is {len(poly_names)}"
+        # 确定摆放方向
+        connect_directions = [k for k, v in self.next_net.items() if len(v) > 0]
+        net_s = len(connect_directions)
+        if net_s == 0:
+            return
+        elif net_s == 1:
+            # 获取哪个方向有连接
+            self.set_direct_to_poly(connect_directions[0], poly_names[0])
+            self.set_direct_to_poly(EDANode.opposite_direction(connect_directions[0]), poly_names[1])
+            return
+        elif net_s == 2:
+            # 两个方向都有连接
+            self.set_direct_to_poly(connect_directions[0], poly_names[0])
+            self.set_direct_to_poly(connect_directions[1], poly_names[1])
+            return
+        elif net_s == 3:
+            # 获取相对的两个方向
+            opposite_directions = [EDANode.opposite_direction(d) for d in connect_directions]
+            set_directions = [d for d in connect_directions if d in opposite_directions]
+            assert len(set_directions) == 2, f"Invalid number of set directions, must be 2, it is {set_directions}, opposite_directions = {opposite_directions}, connect_directions = {connect_directions}"
+            self.set_direct_to_poly(set_directions[0], poly_names[0])
+            self.set_direct_to_poly(set_directions[1], poly_names[1])
+            return
+        elif net_s == 4:
+            # 随机选择一个方向以及其相对方向
+            random_direction = connect_directions[random.randint(0, 3)]
+            random_direction = [random_direction, EDANode.opposite_direction(random_direction)]
+            self.set_direct_to_poly(random_direction[0], poly_names[0])
+            self.set_direct_to_poly(random_direction[1], poly_names[1])
+
+    def get_connection_info(self):
+        rst = []
+        for direction in self.next_net.keys():
+            poly, net = self.get_net_of_direction(direction)
+            if poly is None:
+                continue
+            if poly == "Source":
+                rst.append((direction, "Body", net))
+            rst.append((direction, poly, net))
+
+        return rst
+
+
 
 class NetNode:
     def __init__(self, id):

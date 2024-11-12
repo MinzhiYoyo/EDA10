@@ -1,77 +1,25 @@
-##########################################################
-# 输入：图片路径
-# 输出：字典，包含三个键值对
-#       EC：发射极和集电极是垂直方向（Vertical）或水平方向（Horizontal）
-#       Emitter：发射极的位置（Left/Right/Up/Down）
-#       Collector：集电极的位置（Left/Right/Up/Down）
-#       Base：基极的位置（Left/Right/Up/Down）
-# 调用方法：python bjt_detect.py <image_path>
-##########################################################
-import queue
-
 from PIL import Image, ImageDraw, ImageFont
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-
 from EDAPublic.EDACV import CV_UP, CV_DOWN, CV_LEFT, CV_RIGHT
-result = {'EC': None, 'Emitter': None, 'Collector': None, 'Base': None}
+from bjt_detect import bfs_remove_zi
+
+result = {'IO': None, 'In': None, 'Out': None}
 image_path = ''
-binary_threshold = 175
-def bfs_remove_zi(image):
-    # 传入的是 image，其中，0表示前景，255表示背景，我们需要移除部分前景
-    point_set = set()
-    h, w = image.shape
-    for i in range(h):
-        for j in range(w):
-            if image[i][j] == 0:
-                point_set.add((i, j))
-    # 随机选择一个点
-    while len(point_set) > 0:
-        start = point_set.pop()
-        # 新建队列
-        q = queue.Queue()
-        q.put(start)
-        record_to_edge = 0
-        record_remove_point = set()
-        record_remove_point.add(start)
-        while not q.empty():
-            cur = q.get()
-            nex = [(cur[0] - 1, cur[1]), (cur[0] + 1, cur[1]), (cur[0], cur[1] - 1), (cur[0], cur[1] + 1)]
-            for n in nex:
-                if n in point_set:
-                    q.put(n)
-                    point_set.remove(n)
-                    record_remove_point.add(n)
-                elif n[0] < 0 or n[0] >= h or n[1] < 0 or n[1] >= w:
-                    record_to_edge += 1
-        if record_to_edge < 2:
-            for p in record_remove_point:
-                image[p[0]][p[1]] = 255
-    return image
-
-
-
+from bjt_detect import binarize_image
 # 降维
 def convert_row(row):
     count_greater_equal = np.sum(row >= 128)
     # 返回 0 或 1
     return 1 if count_greater_equal >= 2 else 0
 
-def binarize_image(image_path, threshold=128):
-    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE) if isinstance(image_path, str) else cv2.cvtColor(image_path, cv2.COLOR_BGR2GRAY)
-    _, binary_image = cv2.threshold(image, binary_threshold, 255, cv2.THRESH_BINARY)
-    # cv2.imshow('binary_image_bjt_mos', binary_image)
-    # 统计黑色占比，如果占比过小，就腐蚀
-    if np.sum(binary_image == 0) / binary_image.size < 0.25:
-        kernel = np.ones((5, 5), np.uint8)
-        binary_image = cv2.erode(binary_image, kernel, iterations=1)
-    # cv2.imshow('binary_image_bjt_mos', binary_image)
-        binary_image = bfs_remove_zi(binary_image)
-    # cv2.imshow('binary_image_bjt_mos', binary_image)
-    # cv2.waitKey(0)
-    return binary_image
+# def binarize_image(image_path):
+#     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE) if isinstance(image_path, str) else cv2.cvtColor(image_path, cv2.COLOR_BGR2GRAY)
+#     _, binary_image = cv2.threshold(image, 200, 255, cv2.THRESH_BINARY)
+#     binary_image = bfs_remove_zi(binary_image)
+#     return binary_image
 
 def calculate_symmetry(binary_image):
     h, w = binary_image.shape
@@ -154,7 +102,7 @@ def plot_ratios(column_black_ratios, column_white_ratios, row_black_ratios, row_
 
     plt.tight_layout()
     # plt.show()
-    plt.savefig(image_path.replace('.png', '_histogram.png'))
+    # plt.savefig('./tmp/histogram.png')
 
 def annotate_image(image_path, save_path, annotations):
     # 打开图像
@@ -195,7 +143,7 @@ def annotate_image(image_path, save_path, annotations):
     # 保存修改后的图像
     image.save(save_path)
 
-def detect_bjt(image_path):
+def detect_cur(image_path):
     binary_image = binarize_image(image_path)
     lr_symmetry, ud_symmetry = calculate_symmetry(binary_image)
     column_black_ratios, column_white_ratios = calculate_column_ratios(binary_image)
@@ -206,32 +154,24 @@ def detect_bjt(image_path):
 
     # 比较对称性
     if lr_symmetry > ud_symmetry:
-        # print("EC horizontal")
-        result['EC'] = 'Horizontal'
-        if horizontal_bias == CV_LEFT:
-            result['Emitter'] = CV_LEFT
-            result['Collector'] = CV_RIGHT
+        # print("IO vertical")
+        result['IO'] = 'Vertical'
+        if horizontal_bias == CV_UP:
+            result['Out'] = CV_UP
+            result['In'] = CV_DOWN
         else:
-            result['Emitter'] = CV_RIGHT
-            result['Collector'] = CV_LEFT
-        if vertical_bias == CV_UP:
-            result['Base'] = CV_UP
-        else:
-            result['Base'] = CV_DOWN
+            result['Out'] = CV_DOWN
+            result['In'] = CV_UP
     else:
-        # print("EC vertical")
-        result['EC'] = 'Vertical'
-        if vertical_bias == CV_UP:
-            result['Emitter'] = CV_UP
-            result['Collector'] = CV_DOWN
+        # print("IO horizontal")
+        result['IO'] = 'Horizontal'
+        if vertical_bias == CV_LEFT:
+            result['Out'] = CV_LEFT
+            result['In'] = CV_RIGHT
         else:
-            result['Emitter'] = CV_DOWN
-            result['Collector'] = CV_UP
-        if horizontal_bias == CV_LEFT:
-            result['Base'] = CV_LEFT
-        else:
-            result['Base'] = CV_RIGHT
-
+            result['Out'] = CV_RIGHT
+            result['In'] = CV_LEFT
+    
     # print(result)
     # save_path = image_path.replace('.png', '_annotated.png')  # 保存图片的路径
     # annotate_image(image_path, save_path, result)
@@ -245,4 +185,4 @@ if __name__ == "__main__":
     except IndexError:
         print("Usage: python bjt_detect.py <image_path>")
         sys.exit(1)
-    detect_bjt(image_path)
+    detect_cur(image_path)
