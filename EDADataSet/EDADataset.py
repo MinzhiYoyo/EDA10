@@ -26,7 +26,7 @@ class EDADataset:
 
         # 读取配置文件
         with open('./config.json', 'r', encoding='utf-8') as f:
-            print(f'loading config from {f.name}')
+            # print(f'loading config from {f.name}')
             self.config = json.load(f)
 
         self.length = len(self.input_images)
