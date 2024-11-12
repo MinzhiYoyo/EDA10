@@ -155,7 +155,7 @@ class NetlistModel:
         return label
 
     # 执行一张图
-    def run(self, png_file_path, png_file_name, graph: ndarray, info: list[dict], tmp_dir: str, is_draw: bool = False, animal_interval = 20):
+    def run(self, png_file_path, png_file_name, graph: ndarray, info: list[dict], tmp_dir: str = None, is_draw: bool = False, animal_interval = 20):
         if graph is None:
             warning('图像为空')
             return
@@ -290,10 +290,8 @@ class NetlistModel:
         netlist = self.to_netlist(graph_netlist, is_draw) # 生成 netlist
         netlist = self.predict_function(netlist) # 预测功能
         # 以人能够阅读的方式写入 json 文件，路径为 {tmp_dir}/test.json
-        with open(f'{tmp_dir}/{png_file_name.split(".")[0]}.json', 'w', encoding='utf8') as f:
-            json.dump(netlist, f, ensure_ascii=False, indent=4)
-
-        # TODO: 增加输出功能
+        # with open(f'{tmp_dir}/{png_file_name.split(".")[0]}.json', 'w', encoding='utf8') as f:
+        #     json.dump(netlist, f, ensure_ascii=False, indent=4)
 
         if is_draw:
             draw_graph(netlist, png_file_name)
