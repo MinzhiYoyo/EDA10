@@ -23,7 +23,7 @@ classes = {
     '16': 'vdd',
     '17': 'switch',
     '18': 'switch-3',
-    '19': 'antenna'
+    '19': 'antenna',
 }
 
 model = YOLO("best.pt")
