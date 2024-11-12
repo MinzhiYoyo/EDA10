@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 from numpy import ndarray
 
-from Graph.EDADrawGraph import draw_graph
+# from Graph.EDADrawGraph import draw_graph
 from Graph.EDANode import *
 from EDAPublic.EDACV import EDARectangle, EDAPoint
 from mos_detect import detect_mos
@@ -293,8 +293,8 @@ class NetlistModel:
         # with open(f'{tmp_dir}/{png_file_name.split(".")[0]}.json', 'w', encoding='utf8') as f:
         #     json.dump(netlist, f, ensure_ascii=False, indent=4)
 
-        if is_draw:
-            draw_graph(netlist, png_file_name)
+        # if is_draw:
+        #     draw_graph(netlist, png_file_name)
 
         if is_draw:
             cv2.waitKey(0)
