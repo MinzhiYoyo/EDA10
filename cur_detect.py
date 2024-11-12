@@ -1,13 +1,3 @@
-##########################################################
-# 输入：图片路径
-# 输出：字典，包含三个键值对
-#       EC：发射极和集电极是垂直方向（Vertical）或水平方向（Horizontal）
-#       Emitter：发射极的位置（Left/Right/Up/Down）
-#       Collector：集电极的位置（Left/Right/Up/Down）
-#       Base：基极的位置（Left/Right/Up/Down）
-# 调用方法：python bjt_detect.py <image_path>
-##########################################################
-
 from PIL import Image, ImageDraw, ImageFont
 import cv2
 import numpy as np
