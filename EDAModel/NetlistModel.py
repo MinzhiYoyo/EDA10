@@ -345,7 +345,9 @@ class NetlistModel:
                             if (next_id, next_direct) not in record_component_id_direction:
                                 record_component_id_direction.append((next_id, next_direct, next_point))
                             # record_component_id_direction.append((next_id, next_direct))
-
+            record_component_id_set = set([x[0] for x in record_component_id_direction])
+            if len(record_component_id_set) > 6:  # 节点过多了
+                continue
             for i in range(len(record_component_id_direction)):
                 for j in range(i + 1, len(record_component_id_direction)):
                     id_i = record_component_id_direction[i][0]

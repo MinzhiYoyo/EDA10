@@ -59,12 +59,12 @@ def convert_row(row):
     # 返回 0 或 1
     return 1 if count_greater_equal >= 2 else 0
 
-def binarize_image(image_path, threshold=128):
+def binarize_image(image_path, must_removezi=False):
     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE) if isinstance(image_path, str) else cv2.cvtColor(image_path, cv2.COLOR_BGR2GRAY)
     _, binary_image = cv2.threshold(image, binary_threshold, 255, cv2.THRESH_BINARY)
     # cv2.imshow('binary_image_bjt_mos', binary_image)
     # 统计黑色占比，如果占比过小，就腐蚀
-    if np.sum(binary_image == 0) / binary_image.size < 0.25:
+    if np.sum(binary_image == 0) / binary_image.size < 0.25 and not must_removezi:
         kernel = np.ones((5, 5), np.uint8)
         binary_image = cv2.erode(binary_image, kernel, iterations=1)
     # cv2.imshow('binary_image_bjt_mos', binary_image)
