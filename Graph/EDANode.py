@@ -207,18 +207,54 @@ class EDANode:
             self.set_direct_to_poly(random_direction[0], poly_names[0])
             self.set_direct_to_poly(random_direction[1], poly_names[1])
 
+    def fix_mos_gate(self):
+        connect_directions = [k for k, v in self.next_node.items() if len(v) > 0]
+        net_s = len(connect_directions)
+        if net_s == 3:
+            # 获取相对的两个方向
+            opposite_directions = [EDANode.opposite_direction(d) for d in connect_directions]
+            set_directions = [d for d in connect_directions if d in opposite_directions]
+            assert len(
+                set_directions) == 2, f"Invalid number of set directions, must be 2, it is {set_directions}, opposite_directions = {opposite_directions}, connect_directions = {connect_directions}"
+            for direction in [EDANode.UP, EDANode.DOWN, EDANode.LEFT, EDANode.RIGHT]:
+                if direction in connect_directions and direction not in set_directions:
+                    self.set_direct_to_poly(direction, "Gate")
+                    break
+            self.set_direct_to_poly(set_directions[0], "Source")
+            self.set_direct_to_poly(set_directions[1], "Drain")
+            return
+
+
     def get_connection_info(self):
         rst = []
+        # set_Body = False
         for direction in self.next_net.keys():
             poly, net = self.get_net_of_direction(direction)
             if poly is None:
                 continue
-            if poly == "Source":
-                rst.append((direction, "Body", net))
+            # if poly == "Gate":
+            #     oppo_direction = EDANode.opposite_direction(direction)
+            #     oppo_net = self.next_net[oppo_direction]
+            #     if oppo_net is not None and len(oppo_net) > 0:
+            #         rst.append((oppo_direction, "Body", oppo_net[random.randint(0, len(oppo_net) - 1)]))
+            #         set_Body = True
             rst.append((direction, poly, net))
+
+        # if not set_Body:
+            # for direction in self.next_net.keys():
+            #     poly, net = self.get_net_of_direction(direction)
+            #     if poly is None:
+            #         continue
+            #     if poly == "Source":
+            #         rst.append((direction, "Body", net))
 
         return rst
 
+    def get_direction(self, param):
+        for d, p in self.direct_to_poly.items():
+            if p == param:
+                return d
+        return None
 
 
 class NetNode:

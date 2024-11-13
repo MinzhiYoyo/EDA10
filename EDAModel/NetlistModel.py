@@ -282,9 +282,13 @@ class NetlistModel:
 
         # 删除bridge节点
         self.remove_bridge() # 去除桥
-
+        for node_id in range(len(self.nodes)):
+            if "MOS" in self.nodes[node_id].node_type:
+                self.nodes[node_id].fix_mos_gate()
+        self.remove_mos_gate()
         # 将节点间的关系创建成net
         self.create_net(info, graph, is_draw) # 创建网络
+        # 去除MOS管的 Gate和Gate相对的
 
         # 生成网表
         netlist = self.to_netlist(graph_netlist, is_draw) # 生成 netlist
@@ -339,7 +343,8 @@ class NetlistModel:
                         if next_point_color[0] == next_point_color[2] and next_point_color[1] == 0 and next_point_color[0] >= component_color_start[0]:
                             # 遇到下一个元器件了
                             next_id = int(next_point_color[0] - component_color_start[0])
-
+                            if 'amp' in self.nodes[next_id].node_type:
+                                continue
                             next_rect: EDARectangle = info[next_id]['points']
                             next_direct = EDAPoint.get_direction(next_point, current_point)
                             if (next_id, next_direct) not in record_component_id_direction:
@@ -352,6 +357,7 @@ class NetlistModel:
                 for j in range(i + 1, len(record_component_id_direction)):
                     id_i = record_component_id_direction[i][0]
                     id_j = record_component_id_direction[j][0]
+
                     direct_i = record_component_id_direction[i][1]
                     direct_j = record_component_id_direction[j][1]
                     point_i = record_component_id_direction[i][2]
@@ -369,12 +375,13 @@ class NetlistModel:
                         self.nodes[id_j].add_next(direct_j, (direct_i, id_i))
 
     # 将 dir2 的所有连接到 dir1 上
-    def _connect_nodes(self,node_id: int, dir1: str, dir2:str):
+    def _connect_nodes(self,node_id: int, dir1: str, dir2:str, need_delete = True):
         node = self.nodes[node_id]
         for next_direction, next_id in node.next_node[dir1]:
             # 删除self.nodes[next_id].next_node[next_direction]中的(node_id, dir1)
             # self.nodes[next_id].next_node[next_direction].remove((dir1, node_id))
-            self.nodes[next_id].delete_next(next_direction, (dir1, node_id))
+            if need_delete:
+                self.nodes[next_id].delete_next(next_direction, (dir1, node_id))
             # 添加 node.next_node[dir2]中的所有元素到 self.nodes[next_id].next_node[next_direction]中
             for next_next_direction, next_next_id in node.next_node[dir2]:
                 self.nodes[next_id].add_next(next_direction, (next_next_direction, next_next_id))
@@ -418,6 +425,8 @@ class NetlistModel:
             draw(my_id, id_or_net_id=True)
             if self.nodes[my_id].node_type == 'bridge':
                 continue
+
+
 
             my_directions = [EDANode.UP, EDANode.DOWN, EDANode.LEFT, EDANode.RIGHT]
 
@@ -522,6 +531,17 @@ class NetlistModel:
         y = classify_er_model.predict([x])
         netlist['ckt_type'] = ckt_type_numer[y[0]]
         return netlist
+
+    def remove_mos_gate(self):
+        for i in range(len(self.nodes)):
+            if 'MOS' in self.nodes[i].node_type:
+                gate_direction = self.nodes[i].get_direction('Gate')
+                if gate_direction is None:
+                    continue
+                gate_oppo_direction = EDANode.opposite_direction(gate_direction)
+                if len(self.nodes[i].next_node[gate_direction]) > 0 and len(self.nodes[i].next_node[gate_oppo_direction]) > 0:
+                    self._connect_nodes(i, gate_direction, gate_oppo_direction, False)
+                    self._connect_nodes(i, gate_oppo_direction, gate_direction, False)
 
 
 
