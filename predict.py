@@ -1,4 +1,7 @@
 import sys
+
+import cv2
+import numpy as np
 from PIL import Image
 from ultralytics import YOLO
 import math
@@ -30,7 +33,13 @@ classes = {
 model = YOLO("best.pt")
 model = model.to('cpu')
 def predict(image_path):
-    img = Image.open(image_path)
+    # img = Image.open(image_path)
+
+    img = cv2.imread(image_path)
+    kernel = np.ones((3, 3), np.uint8)
+    img = cv2.erode(img, kernel, iterations=1)
+    img = Image.fromarray(img)
+
     results = model.predict(source=img, conf=0.3, save=False, save_txt=False, verbose=False)
     resultsDict = []
 
